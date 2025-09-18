@@ -1,6 +1,7 @@
 // Notifications/NotificationSettingsView.swift
 import SwiftUI
 import Foundation
+import Darwin
 
 /// 通知設定のフォーム（中央モーダル内に埋め込んで使う）
 struct NotificationSettingsView: View {
@@ -19,7 +20,7 @@ struct NotificationSettingsView: View {
             // 曜日選択（毎週のときのみ）
             if rule.frequency == .weekly {
                 Section(header: Text(isJapanese(locale) ? "曜日" : "Weekdays")) {
-                    WeekdaySelector(selected: $rule.weekdays)
+                    WeekdaySelector(selected: $rule.weekdays, locale: locale)
                 }
             }
 
@@ -135,7 +136,7 @@ private struct FrequencyChipGrid: View {
         ]
     }
 
-    private let columns: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
+    private let columns: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 8), count: 2)
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 8) {
@@ -189,11 +190,20 @@ struct TimePicker: View {
 
 struct WeekdaySelector: View {
     @Binding var selected: Set<Int>?
+    let locale: Locale
     var body: some View {
         // 1=Sun ... 7=Sat（Calendar準拠）
-        let symbols = Calendar.current.shortWeekdaySymbols  // ロケールに合わせた短縮表記
+        let symbols: [String] = {
+            if isJapanese(locale) {
+                return ["日", "月", "火", "水", "木", "金", "土"]
+            } else {
+                return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+            }
+        }()
+
         let indices = Array(1...7)
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7), spacing: 8) {
+
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7), spacing: 8) {
             ForEach(Array(zip(indices, symbols)), id: \.0) { (w, name) in
                 let isOn = (selected ?? []).contains(w)
                 Button {

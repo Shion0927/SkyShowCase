@@ -1,12 +1,15 @@
+
 import SwiftUI
+import Observation
 
 struct SearchView: View {
     @Environment(\.appConfig) private var config
-    @EnvironmentObject private var state: AppState
+    @Environment(AppState.self) private var state
     @State private var currentLocationCity: OpenMeteoCity?
     @State private var isFetchingLocation = false
 
     var body: some View {
+        @Bindable var state = state
         List {
             CurrentLocationSectionView(
                 currentLocationCity: $currentLocationCity,

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct FavoritesView: View {
     @Environment(\.appConfig) private var config
-    @EnvironmentObject private var state: AppState
+    @Environment(AppState.self) private var state
 
     var body: some View {
         List {

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SearchResultsSectionView: View {
     @Environment(\.appConfig) private var config
-    @EnvironmentObject private var state: AppState
+    @Environment(AppState.self) private var state
 
     var body: some View {
         let isJP = isJapanese(config.locale)

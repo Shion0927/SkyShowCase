@@ -1,23 +1,29 @@
 import Foundation
 import SwiftUI
 import CoreLocation
+import Observation
 
 @MainActor
-final class AppState: ObservableObject {
+@Observable
+final class AppState {
     // MARK: - Search / Forecast State
-    @Published var searchText: String = ""
-    @Published var searchResults: [OpenMeteoCity] = []
-    @Published var isSearching = false
-    @Published var isLoadingForecast = false
-    @Published var forecast: Forecast?
-    @Published var currentCity: OpenMeteoCity?
-    @Published var errorMessage: String?
+    var searchText: String = ""
+    var searchResults: [OpenMeteoCity] = []
+    var isSearching = false
+    var isLoadingForecast = false
+    var forecast: Forecast?
+    var currentCity: OpenMeteoCity?
+    var errorMessage: String?
 
     // MARK: - Favorites
     private let favoritesKey = "favorites.cities"
-    @Published var favorites: [OpenMeteoCity] = []
+    var favorites: [OpenMeteoCity] = []
 
     // MARK: - Dependencies
+    @ObservationIgnored private let client: WeatherClient
+    @ObservationIgnored private let locationHelper = LocationHelper()
+
+    // MARK: - Init
     init(client: WeatherClient = .shared) {
         self.client = client
         // Load favorites
@@ -26,7 +32,6 @@ final class AppState: ObservableObject {
             self.favorites = items
         }
     }
-    private let client: WeatherClient
 
     // MARK: - Search
     func searchCities(_ query: String) {
@@ -82,9 +87,10 @@ final class AppState: ObservableObject {
     }
 
     // MARK: - Current Location → City
-    private let locationHelper = LocationHelper()
-
-    func fetchCurrentLocationCity(fallbackName: String = "現在地", locale: Locale = .current) async -> OpenMeteoCity? {
+    func fetchCurrentLocationCity(
+        fallbackName: String = "現在地",
+        locale: Locale = .current
+    ) async -> OpenMeteoCity? {
         do {
             let loc = try await locationHelper.requestOneShotLocation()
             // Reverse geocode to get human-friendly names

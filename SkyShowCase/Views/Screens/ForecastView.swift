@@ -1,11 +1,14 @@
 import SwiftUI
 import UserNotifications
 import UIKit
+import Observation
 
 struct ForecastView: View {
     @Environment(\.appConfig) private var config
     let city: OpenMeteoCity
-    @EnvironmentObject private var state: AppState
+    @Environment(AppState.self) private var state
+    @State private var isAlive = false
+    @State private var asyncTask: Task<Void, Never>? = nil
 
     // Notifications / UI state
     @State private var hasScheduledNotification = false
@@ -14,6 +17,7 @@ struct ForecastView: View {
     @State private var showSnackbar = false
     @State private var showNotificationSheet = false
     @State private var rule: NotificationRule = .defaultRule
+    @State private var snackTask: Task<Void, Never>? = nil
 
     var body: some View {
         List {
@@ -62,9 +66,9 @@ struct ForecastView: View {
             }
         }
         .navigationTitle(city.name)
-        .task { state.loadForecast(for: city) }
-        .task { await refreshScheduledState() }
-        .task { rule = NotificationRule.load(for: city.id) ?? .defaultRule }
+        .task { @MainActor in state.loadForecast(for: city) }
+        .task { @MainActor in await refreshScheduledState() }
+        .task { @MainActor in rule = NotificationRule.load(for: city.id) ?? .defaultRule }
         .toolbar {
             // Favorite toggle
             ToolbarItem(placement: .topBarTrailing) {
@@ -82,7 +86,7 @@ struct ForecastView: View {
                             Text(isJapanese(config.locale) ? "通知を編集" : "Edit notification")
                         }
                         Button(role: .destructive) {
-                            Task {
+                            asyncTask = Task { @MainActor in
                                 await disableNotifications()
                             }
                         } label: {
@@ -111,6 +115,13 @@ struct ForecastView: View {
                 secondaryButton: .cancel(Text(isJapanese(config.locale) ? "キャンセル" : "Cancel"))
             )
         }
+        .onAppear { isAlive = true }
+        .onDisappear {
+            isAlive = false
+            asyncTask?.cancel()
+            snackTask?.cancel()
+            snackTask = nil
+        }
         // ===== Centered modal for notification settings =====
         .overlay(alignment: .center) {
             if showNotificationSheet {
@@ -137,11 +148,16 @@ struct ForecastView: View {
 
                         // Content
                         NotificationSettingsView(rule: $rule, locale: config.locale) {
-                            Task {
+                            asyncTask = Task { @MainActor in
+                                #if DEBUG
+                                let ok = true // bypass NotificationScheduler in Debug to isolate crashes
+                                #else
                                 let ok = await scheduleAccordingToRule(rule)
+                                #endif
                                 if !ok {
                                     showNotificationSettingsAlert = true
                                 } else {
+                                    #if !DEBUG
                                     // Per-day scheduling
                                     if rule.enableToday {
                                         await NotificationScheduler.scheduleToday(for: city.id, cityName: city.name, hour: rule.todayHour, minute: rule.todayMinute, locale: config.locale, forecast: state.forecast)
@@ -154,14 +170,31 @@ struct ForecastView: View {
                                         await NotificationScheduler.cancelTomorrow(for: city.id)
                                     }
                                     await refreshScheduledState()
-                                    showSnack(isJapanese(config.locale) ? "通知を設定しました" : "Notification scheduled")
+                                    #endif
                                 }
-                                withAnimation(.easeOut(duration: 0.2)) { showNotificationSheet = false }
+                                guard isAlive else { return }
+                                DispatchQueue.main.async {
+                                    // Close sheet without UIKit animations (Release含む恒久対策)
+                                    UIView.setAnimationsEnabled(false)
+                                    showNotificationSheet = false
+                                    UIView.setAnimationsEnabled(true)
+                                    // Show snackbar after the sheet has fully closed to avoid trait-change collisions on iOS 26
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                        guard isAlive else { return }
+                                        showSnack(isJapanese(config.locale) ? "通知を設定しました" : "Notification scheduled")
+                                    }
+                                }
                             }
                         } onDelete: {
-                            Task {
+                            asyncTask = Task { @MainActor in
                                 await disableNotifications() // includes .today/.tomorrow
-                                withAnimation(.easeOut(duration: 0.2)) { showNotificationSheet = false }
+                                guard isAlive else { return }
+                                DispatchQueue.main.async {
+                                    // Close sheet without UIKit animations (Release含む恒久対策)
+                                    UIView.setAnimationsEnabled(false)
+                                    showNotificationSheet = false
+                                    UIView.setAnimationsEnabled(true)
+                                }
                             }
                         }
                         .frame(maxHeight: 560)
@@ -202,20 +235,30 @@ struct ForecastView: View {
     }
 
     // === Notifications helpers ===
+    @MainActor
     private func refreshScheduledState() async {
         hasScheduledNotification = await NotificationScheduler.isScheduled(for: city.id)
     }
 
+    @MainActor
     private func showSnack(_ text: String) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-            snackbarMessage = text
-            showSnackbar = true
+        // Show after a short delay so it never collides with the sheet/menu closing animation in the same frame (iOS 26 safety)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            guard isAlive, !showNotificationSheet else { return }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                snackbarMessage = text
+                showSnackbar = true
+            }
         }
-        Task { @MainActor in
+        // Cancel any previous delayed task and schedule a new one that we can cancel on disappear
+        snackTask?.cancel()
+        snackTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled, isAlive else { return }
             withAnimation(.easeOut(duration: 0.25)) { showSnackbar = false }
         }
     }
+
 
     private func scheduleAccordingToRule(_ rule: NotificationRule) async -> Bool {
         let ok = await NotificationScheduler.schedule(rule: rule, for: city.id, cityName: city.name, forecast: state.forecast, locale: config.locale)
@@ -223,9 +266,10 @@ struct ForecastView: View {
         return ok
     }
 
+    @MainActor
     private func disableNotifications() async {
         // 予約済み通知をキャンセル
-        await NotificationScheduler.cancel(for: city.id)
+        await NotificationScheduler.cancelAll(for: city.id)
         // 状態更新
         await refreshScheduledState()
         showSnack(isJapanese(config.locale) ? "通知を解除しました" : "Notification disabled")

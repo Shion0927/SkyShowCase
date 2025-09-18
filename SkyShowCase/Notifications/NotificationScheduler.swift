@@ -20,15 +20,6 @@ struct NotificationScheduler {
         }
     }
 
-    /// 予約を削除（単発＋週次すべて／配信済みも含めて消す）
-    static func cancel(for cityId: Int) async {
-        let center = UNUserNotificationCenter.current()
-        var ids = [id(for: cityId)]
-        ids.append(contentsOf: (1...7).map { id(for: cityId) + ".w\($0)" })
-        ids.append(contentsOf: [id(for: cityId) + ".today", id(for: cityId) + ".tomorrow"])
-        await center.removePendingNotificationRequests(withIdentifiers: ids)
-        center.removeDeliveredNotifications(withIdentifiers: ids)
-    }
 
     /// 予約をすべて削除（単発＋週次すべて）
     static func cancelAll(for cityId: Int) async {

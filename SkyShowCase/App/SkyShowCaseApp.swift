@@ -9,11 +9,11 @@ import SwiftUI
 
 @main
 struct SkyShowCaseApp: App {
-    @StateObject private var state = AppState()
+    @State private var state = AppState()
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(state)
+                .environment(state)
         }
     }
 }
