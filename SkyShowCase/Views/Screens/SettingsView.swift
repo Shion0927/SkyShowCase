@@ -10,7 +10,7 @@ struct SettingsView: View {
             Section(header: Text(String(localized: .init("settings.section.temperature")))) {
                 // 押下で開閉
                 Button {
-                    withAnimation(.easeInOut(duration: 0.25)) { isUnitExpanded.toggle() }
+                    withAnimation(.easeInOut(duration: 0.2)) { isUnitExpanded.toggle() }
                 } label: {
                     HStack {
                         Text(String(localized: .init("settings.picker.temperature")))
@@ -24,20 +24,17 @@ struct SettingsView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
-                    .padding(.vertical, 6)
                 }
                 .buttonStyle(.plain)
 
                 if isUnitExpanded {
                     VStack(spacing: 0) {
                         optionRow(.system)
+                        Divider()
                         optionRow(.celsius)
+                        Divider()
                         optionRow(.fahrenheit)
                     }
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .move(edge: .top)),
-                        removal: .opacity.combined(with: .move(edge: .top))
-                    ))
                 }
 
                 Text(String(localized: .init("settings.note.applies_globally")))
@@ -45,7 +42,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // その他セクション（そのまま）
+            // その他セクション
             Section(header: Text(String(localized: .init("settings.section.misc")))) {
                 Text(String(localized: .init("settings.misc.placeholder")))
                     .font(.footnote)
@@ -70,7 +67,12 @@ struct SettingsView: View {
     @ViewBuilder
     private func optionRow(_ pref: TemperatureUnitPref) -> some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            // 1) 先に折りたたみアニメーションを実行
+            withAnimation(.easeInOut(duration: 0.22)) {
+                isUnitExpanded = false
+            }
+            // 2) アニメーション完了後に値を確定（AppStorageを書き換えると画面全体が再描画されるため）
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
                 temperatureUnitPrefRaw = pref.rawValue
             }
         } label: {
