@@ -4,6 +4,10 @@ struct SettingsView: View {
     @AppStorage("temperatureUnitPref") private var temperatureUnitPrefRaw: String = "system"
     @State private var isUnitExpanded = false
 
+    // Theme
+    @AppStorage("appearancePref") private var appearancePrefRaw: String = "system"
+    @State private var isThemeExpanded = false
+
     var body: some View {
         Form {
             // 温度単位セクション
@@ -38,6 +42,42 @@ struct SettingsView: View {
                 }
 
                 Text(String(localized: .init("settings.note.applies_globally")))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            // テーマセクション
+            Section(header: Text(String(localized: .init("settings.section.theme")))) {
+                // 押下で開閉
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { isThemeExpanded.toggle() }
+                } label: {
+                    HStack {
+                        Text(String(localized: .init("settings.picker.theme")))
+                        Spacer()
+                        Text(currentThemeLabel())
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.down")
+                            .rotationEffect(.degrees(isThemeExpanded ? 180 : 0))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if isThemeExpanded {
+                    VStack(spacing: 0) {
+                        themeOptionRow("system")
+                        Divider()
+                        themeOptionRow("light")
+                        Divider()
+                        themeOptionRow("dark")
+                    }
+                }
+
+                Text(String(localized: .init("settings.theme.note.applies_immediately")))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -100,6 +140,47 @@ struct SettingsView: View {
             return String(localized: .init("settings.unit.celsius"))
         case .fahrenheit:
             return String(localized: .init("settings.unit.fahrenheit"))
+        }
+    }
+    // Theme helpers
+    private func currentThemeLabel() -> String {
+        switch appearancePrefRaw {
+        case "light": return String(localized: .init("settings.theme.light"))
+        case "dark":  return String(localized: .init("settings.theme.dark"))
+        default:       return String(localized: .init("settings.theme.system")).localizedUppercase
+        }
+    }
+
+    @ViewBuilder
+    private func themeOptionRow(_ raw: String) -> some View {
+        Button {
+            // 折りたたみを先に実行してから反映
+            withAnimation(.easeInOut(duration: 0.22)) { isThemeExpanded = false }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
+                appearancePrefRaw = raw
+            }
+        } label: {
+            HStack {
+                Text(themeLabel(for: raw))
+                Spacer()
+                if appearancePrefRaw == raw {
+                    Image(systemName: "checkmark")
+                        .font(.callout)
+                        .foregroundStyle(.tint)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func themeLabel(for raw: String) -> String {
+        switch raw {
+        case "light": return String(localized: .init("settings.theme.light"))
+        case "dark":  return String(localized: .init("settings.theme.dark"))
+        default:       return String(localized: .init("settings.theme.system")).localizedUppercase
         }
     }
 }

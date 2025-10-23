@@ -848,6 +848,48 @@
         }
       }
     },
+    "settings.section.theme" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Appearance" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "テーマ" } }
+      }
+    },
+    "settings.picker.theme" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Theme" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "テーマ" } }
+      }
+    },
+    "settings.theme.system" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "System" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "システム" } }
+      }
+    },
+    "settings.theme.light" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Light" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ライト" } }
+      }
+    },
+    "settings.theme.dark" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Dark" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ダーク" } }
+      }
+    },
+    "settings.theme.note.applies_immediately" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Changes apply immediately." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "変更はすぐに反映されます。" } }
+      }
+    },
     "settings.unit.celsius" : {
       "extractionState" : "manual",
       "localizations" : {
