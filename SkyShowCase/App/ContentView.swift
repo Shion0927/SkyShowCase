@@ -2,9 +2,10 @@ import SwiftUI
 import Observation
 
 struct ContentView: View {
-    private enum Tab: Hashable { case search, favorites }
+    private enum Tab: Hashable { case search, favorites, settings }
     @State private var selectedTab: Tab = .search
     @State private var favoritesPath = NavigationPath()
+    @AppStorage("temperatureUnitPref") private var temperatureUnitPrefRaw: String = "system"
     @State private var config = AppConfig()
     @Environment(\.locale) private var systemLocale   // ← システムのロケールを監視
 
@@ -14,16 +15,25 @@ struct ContentView: View {
                 SearchView()
                     .navigationTitle("tab.search")
             }
-            .tabItem { Label("tab.search", systemImage: "magnifyingglass") }
+            .tabItem { Label(String(localized: .init("tab.search")), systemImage: "magnifyingglass") }
             .tag(Tab.search)
 
             NavigationStack(path: $favoritesPath) {
                 FavoritesView()
                     .navigationTitle("tab.favorites")
             }
-            .tabItem { Label("tab.favorites", systemImage: "star.fill") }
+            .tabItem { Label(String(localized: .init("tab.favorites")), systemImage: "star.fill") }
             .tag(Tab.favorites)
+
+            // Settings tab
+            NavigationStack {
+                SettingsView()
+                    .navigationTitle("tab.settings")
+            }
+            .tabItem { Label(String(localized: .init("tab.settings")), systemImage: "gearshape") }
+            .tag(Tab.settings)
         }
+        .id(temperatureUnitPrefRaw)
         .tint(config.primaryTint)
         .environment(\.appConfig, config)
         .environment(\.locale, config.locale)  // ← AppConfigのlocaleを全体に注入
