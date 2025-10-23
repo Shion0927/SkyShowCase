@@ -5,9 +5,8 @@ struct SearchResultsSectionView: View {
     @Environment(AppState.self) private var state
 
     var body: some View {
-        let isJP = isJapanese(config.locale)
         if !state.searchResults.isEmpty {
-            Section(isJP ? "検索結果" : "Results") {
+            Section(String(localized: .init("search.results"))) {
                 ForEach(state.searchResults) { city in
                     NavigationLink(value: city) {
                         CityRow(city: city)
@@ -15,11 +14,11 @@ struct SearchResultsSectionView: View {
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         if state.isFavorite(city) {
                             Button(role: .destructive) { state.toggleFavorite(city) } label: {
-                                Label(isJP ? "削除" : "Remove", systemImage: "star.slash")
+                                Label(String(localized: .init("favorites.remove")), systemImage: "star.slash")
                             }
                         } else {
                             Button { state.toggleFavorite(city) } label: {
-                                Label(isJP ? "追加" : "Add", systemImage: "star")
+                                Label(String(localized: .init("favorites.add")), systemImage: "star")
                             }
                         }
                     }

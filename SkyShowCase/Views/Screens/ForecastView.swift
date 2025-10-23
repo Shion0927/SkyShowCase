@@ -83,14 +83,14 @@ struct ForecastView: View {
                         Button {
                             showNotificationSheet = true
                         } label: {
-                            Text(isJapanese(config.locale) ? "通知を編集" : "Edit notification")
+                            Text(String(localized: .init("notification.edit")))
                         }
                         Button(role: .destructive) {
                             asyncTask = Task { @MainActor in
                                 await disableNotifications()
                             }
                         } label: {
-                            Text(isJapanese(config.locale) ? "通知を解除" : "Disable notification")
+                            Text(String(localized: .init("notification.disable")))
                         }
                     } label: {
                         Image(systemName: "bell.fill")
@@ -105,14 +105,14 @@ struct ForecastView: View {
         }
         .alert(isPresented: $showNotificationSettingsAlert) {
             Alert(
-                title: Text(isJapanese(config.locale) ? "通知がオフです" : "Notifications Disabled"),
-                message: Text(isJapanese(config.locale) ? "設定アプリで通知を許可してください。" : "Please allow notifications in Settings."),
-                primaryButton: .default(Text(isJapanese(config.locale) ? "設定を開く" : "Open Settings")) {
+                title: Text(String(localized: .init("alert.notifications_disabled.title"))),
+                message: Text(String(localized: .init("alert.notifications_disabled.message"))),
+                primaryButton: .default(Text(String(localized: .init("alert.notifications_disabled.open_settings")))) {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
                         UIApplication.shared.open(url)
                     }
                 },
-                secondaryButton: .cancel(Text(isJapanese(config.locale) ? "キャンセル" : "Cancel"))
+                secondaryButton: .cancel(Text(String(localized: .init("common.cancel"))))
             )
         }
         .onAppear { isAlive = true }
@@ -135,7 +135,7 @@ struct ForecastView: View {
                     VStack(spacing: 0) {
                         // Header
                         HStack {
-                            Text(isJapanese(config.locale) ? "通知設定" : "Notification")
+                            Text(String(localized: .init("notification.settings.title")))
                                 .font(.headline)
                             Spacer()
                             Button { withAnimation(.easeOut(duration: 0.2)) { showNotificationSheet = false } } label: {
@@ -149,15 +149,15 @@ struct ForecastView: View {
                         // Content
                         NotificationSettingsView(rule: $rule, locale: config.locale) {
                             asyncTask = Task { @MainActor in
-                                #if DEBUG
-                                let ok = true // bypass NotificationScheduler in Debug to isolate crashes
-                                #else
+                                let allowed = await ensureNotificationAuthorization()
+                                if !allowed {
+                                    showNotificationSettingsAlert = true
+                                    return
+                                }
                                 let ok = await scheduleAccordingToRule(rule)
-                                #endif
                                 if !ok {
                                     showNotificationSettingsAlert = true
                                 } else {
-                                    #if !DEBUG
                                     // Per-day scheduling
                                     if rule.enableToday {
                                         await NotificationScheduler.scheduleToday(for: city.id, cityName: city.name, hour: rule.todayHour, minute: rule.todayMinute, locale: config.locale, forecast: state.forecast)
@@ -170,18 +170,17 @@ struct ForecastView: View {
                                         await NotificationScheduler.cancelTomorrow(for: city.id)
                                     }
                                     await refreshScheduledState()
-                                    #endif
-                                }
-                                guard isAlive else { return }
-                                DispatchQueue.main.async {
-                                    // Close sheet without UIKit animations (Release含む恒久対策)
-                                    UIView.setAnimationsEnabled(false)
-                                    showNotificationSheet = false
-                                    UIView.setAnimationsEnabled(true)
-                                    // Show snackbar after the sheet has fully closed to avoid trait-change collisions on iOS 26
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                                        guard isAlive else { return }
-                                        showSnack(isJapanese(config.locale) ? "通知を設定しました" : "Notification scheduled")
+                                    guard isAlive else { return }
+                                    DispatchQueue.main.async {
+                                        // Close sheet without UIKit animations (Release含む恒久対策)
+                                        UIView.setAnimationsEnabled(false)
+                                        showNotificationSheet = false
+                                        UIView.setAnimationsEnabled(true)
+                                        // Show snackbar after the sheet has fully closed to avoid trait-change collisions on iOS 26
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                            guard isAlive else { return }
+                                            showSnack(String(localized: .init("notification.scheduled")))
+                                        }
                                     }
                                 }
                             }
@@ -227,11 +226,12 @@ struct ForecastView: View {
     }
 
     private func localizedCurrentDetail(for locale: Locale, apparent: String, wind: Int) -> String {
-        isJapanese(locale) ? "体感 \(apparent) / 風 \(wind) m/s" : "Feels like \(apparent) / Wind \(wind) m/s"
+        let format = String(localized: .init("forecast.current_detail"))
+        return String(format: format, locale: locale, apparent, wind)
     }
 
     private func localizedForecastHeader(for locale: Locale) -> String {
-        isJapanese(locale) ? "7日予報" : "7-Day Forecast"
+        String(localized: .init("forecast.header"))
     }
 
     // === Notifications helpers ===
@@ -272,6 +272,26 @@ struct ForecastView: View {
         await NotificationScheduler.cancelAll(for: city.id)
         // 状態更新
         await refreshScheduledState()
-        showSnack(isJapanese(config.locale) ? "通知を解除しました" : "Notification disabled")
+        showSnack(String(localized: .init("notification.disabled")))
+    }
+
+    private func ensureNotificationAuthorization() async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        case .denied:
+            return false
+        case .notDetermined:
+            do {
+                let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+                return granted
+            } catch {
+                return false
+            }
+        @unknown default:
+            return false
+        }
     }
 }

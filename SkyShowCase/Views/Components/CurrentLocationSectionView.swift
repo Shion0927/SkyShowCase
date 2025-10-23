@@ -7,20 +7,19 @@ struct CurrentLocationSectionView: View {
     let fetchCurrentLocation: () async -> Void
 
     var body: some View {
-        let isJP = isJapanese(config.locale)
-        Section(header: Text(isJP ? "現在地" : "Current Location")) {
+        Section(header: Text("current_location_section.header")) {
             if let city = currentLocationCity {
                 NavigationLink(value: city) {
                     CityRow(city: city)
                 }
             } else {
                 HStack {
-                    Label(isJP ? "現在地" : "Current", systemImage: "location.fill")
+                    Label("current_location_section.current", systemImage: "location.fill")
                     Spacer()
                     if isFetchingLocation {
                         ProgressView()
                     } else {
-                        Button(isJP ? "取得" : "Fetch") {
+                        Button("current_location_section.fetch") {
                             Task { await fetchCurrentLocation() }
                         }
                     }
@@ -29,5 +28,3 @@ struct CurrentLocationSectionView: View {
         }
     }
 }
-
-

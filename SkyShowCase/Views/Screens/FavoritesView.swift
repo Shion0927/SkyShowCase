@@ -1,16 +1,15 @@
 import SwiftUI
 
 struct FavoritesView: View {
-    @Environment(\.appConfig) private var config
     @Environment(AppState.self) private var state
 
     var body: some View {
         List {
             if state.favorites.isEmpty {
                 VStack(alignment: .center, spacing: 8) {
-                    Text(isJapanese(config.locale) ? "お気に入りはありません" : "No favorites yet")
+                    Text("favorites.empty.title")
                         .foregroundStyle(.secondary)
-                    Text(isJapanese(config.locale) ? "検索から都市を追加してください" : "Add cities from Search")
+                    Text("favorites.empty.hint")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

@@ -12,8 +12,6 @@ func parseISO_YMD(_ iso: String) -> Date? {
 @inline(__always)
 func formatShortDay(_ date: Date, locale: Locale) -> String {
     let out = DateFormatter()
-    // 日本語優先判定の場合は ja_JP を強制（en_JP のような混在ロケールでも日本語表記に寄せる）
-    out.locale = isJapanese(locale) ? Locale(identifier: "ja_JP") : locale
     out.setLocalizedDateFormatFromTemplate("MMMdEEE")
     return out.string(from: date)
 }

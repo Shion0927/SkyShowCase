@@ -13,9 +13,7 @@ struct NotificationScheduler {
         let pending = await center.pendingNotificationRequests()
         let base = id(for: cityId)
         return pending.contains { req in
-            req.identifier == base ||
-            req.identifier.hasPrefix(base + ".w") ||
-            req.identifier == base + ".today" ||
+            req.identifier == base || req.identifier.hasPrefix(base + ".w") || req.identifier == base + ".today" ||
             req.identifier == base + ".tomorrow"
         }
     }
@@ -38,6 +36,7 @@ struct NotificationScheduler {
                          forecast: Forecast?,
                          locale: Locale) async -> Bool {
         let center = UNUserNotificationCenter.current()
+        var scheduledCount = 0
 
         // Permission
         let settings = await center.notificationSettings()
@@ -56,12 +55,12 @@ struct NotificationScheduler {
 
         // コンテンツ共通部
         let content = UNMutableNotificationContent()
-        content.title = isJapanese(locale) ? "天気の通知" : "Weather Reminder"
+        content.title = String(localized: .init("notification.title.reminder"))
 
         // トリガーを構築
         switch rule.frequency {
         case .oneTime:
-            guard let dc = nextDateComponents(hour: rule.hour, minute: rule.minute, weekday: nil) else { return true }
+            guard let dc = nextDateComponents(hour: rule.hour, minute: rule.minute, weekday: nil) else { return false }
             content.body = defaultBody(for: forecast, cityName: cityName, locale: locale)
             let req = UNNotificationRequest(
                 identifier: id(for: cityId),
@@ -69,6 +68,7 @@ struct NotificationScheduler {
                 trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
             )
             try? await center.add(req)
+            scheduledCount += 1
 
         case .daily:
             var dc = DateComponents()
@@ -81,9 +81,10 @@ struct NotificationScheduler {
                 trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: true)
             )
             try? await center.add(req)
+            scheduledCount += 1
 
         case .weekly:
-            guard let wds = rule.weekdays, !wds.isEmpty else { return true }
+            guard let wds = rule.weekdays, !wds.isEmpty else { return false }
             let body = defaultBody(for: forecast, cityName: cityName, locale: locale)
             for wd in wds {
                 var dc = DateComponents()
@@ -96,11 +97,12 @@ struct NotificationScheduler {
                     trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: true)
                 )
                 try? await center.add(req)
+                scheduledCount += 1
             }
 
         case .nextDayRain:
             if willRainTomorrow(forecast) {
-                guard let dc = nextDateComponents(hour: rule.hour, minute: rule.minute, weekday: nil) else { return true }
+                guard let dc = nextDateComponents(hour: rule.hour, minute: rule.minute, weekday: nil) else { return false }
                 content.body = defaultBody(for: forecast, cityName: cityName, locale: locale)
                 let req = UNNotificationRequest(
                     identifier: id(for: cityId),
@@ -108,11 +110,12 @@ struct NotificationScheduler {
                     trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
                 )
                 try? await center.add(req)
+                scheduledCount += 1
             } // 条件不成立なら登録しない（ルール保存は呼び出し側で）
 
         case .tempAbove:
             if meetsTemp(forecast, threshold: rule.temperature ?? 30, above: true) {
-                guard let dc = nextDateComponents(hour: rule.hour, minute: rule.minute, weekday: nil) else { return true }
+                guard let dc = nextDateComponents(hour: rule.hour, minute: rule.minute, weekday: nil) else { return false }
                 content.body = defaultBody(for: forecast, cityName: cityName, locale: locale)
                 let req = UNNotificationRequest(
                     identifier: id(for: cityId),
@@ -120,11 +123,12 @@ struct NotificationScheduler {
                     trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
                 )
                 try? await center.add(req)
+                scheduledCount += 1
             }
 
         case .tempBelow:
             if meetsTemp(forecast, threshold: rule.temperature ?? 5, above: false) {
-                guard let dc = nextDateComponents(hour: rule.hour, minute: rule.minute, weekday: nil) else { return true }
+                guard let dc = nextDateComponents(hour: rule.hour, minute: rule.minute, weekday: nil) else { return false }
                 content.body = defaultBody(for: forecast, cityName: cityName, locale: locale)
                 let req = UNNotificationRequest(
                     identifier: id(for: cityId),
@@ -132,11 +136,12 @@ struct NotificationScheduler {
                     trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
                 )
                 try? await center.add(req)
+                scheduledCount += 1
             }
         }
 
         // ここまで来たら権限はOK
-        return true
+        return scheduledCount > 0
     }
 
     // MARK: Per-day (today / tomorrow) one-shot scheduling
@@ -144,7 +149,7 @@ struct NotificationScheduler {
         guard let dc = todayDateComponents(hour: hour, minute: minute) else { return }
         let center = UNUserNotificationCenter.current()
         let content = UNMutableNotificationContent()
-        content.title = isJapanese(locale) ? "本日の天気" : "Today's Weather"
+        content.title = String(localized: .init("notification.title.today"))
         content.body = defaultBodyToday(for: forecast, cityName: cityName, locale: locale)
         let req = UNNotificationRequest(
             identifier: id(for: cityId) + ".today",
@@ -158,10 +163,10 @@ struct NotificationScheduler {
     }
 
     static func scheduleTomorrow(for cityId: Int, cityName: String, hour: Int, minute: Int, locale: Locale, forecast: Forecast?) async {
-        guard let dc = todayDateComponents(hour: hour, minute: minute) else { return }
+        let dc = tomorrowDateComponents(hour: hour, minute: minute)
         let center = UNUserNotificationCenter.current()
         let content = UNMutableNotificationContent()
-        content.title = isJapanese(locale) ? "明日の天気" : "Tomorrow's Weather"
+        content.title = String(localized: .init("notification.title.tomorrow"))
         content.body = defaultBody(for: forecast, cityName: cityName, locale: locale)
         let req = UNNotificationRequest(
             identifier: id(for: cityId) + ".tomorrow",
@@ -231,7 +236,7 @@ struct NotificationScheduler {
 
     private static func bodyContent(defaultText: String, locale: Locale) -> UNMutableNotificationContent {
         let c = UNMutableNotificationContent()
-        c.title = isJapanese(locale) ? "天気の通知" : "Weather Reminder"
+        c.title = String(localized: .init("notification.title.reminder"))
         c.body = defaultText
         return c
     }
@@ -239,7 +244,7 @@ struct NotificationScheduler {
     /// 明日用の本文（都市名＋天気＋最高/最低）
     private static func defaultBody(for forecast: Forecast?, cityName: String, locale: Locale) -> String {
         guard let f = forecast else {
-            return isJapanese(locale) ? "天気のリマインダー" : "Weather reminder"
+            return String(localized: .init("notification.body.reminder_default"))
         }
         // 明日のデータは index 1 を参照。配列長が不足する場合は index 0 にフォールバック
         let idx = (f.daily.weather_code.count > 1 && f.daily.temperature_2m_max.count > 1 && f.daily.temperature_2m_min.count > 1) ? 1 : 0
@@ -247,67 +252,53 @@ struct NotificationScheduler {
         let max = f.daily.temperature_2m_max[idx]
         let min = f.daily.temperature_2m_min[idx]
         let desc = weatherDescription(from: code, locale: locale)
-        if isJapanese(locale) {
-            return "\(cityName)：\(desc) 最高\(Int(max))℃ / 最低\(Int(min))℃"
-        } else {
-            return "\(cityName): \(desc) High \(Int(max))°C / Low \(Int(min))°C"
+        return "\(cityName): \(desc) High \(Int(max))°C / Low \(Int(min))°C"
         }
     }
 
+
     /// 本日用の本文（都市名＋天気＋最高/最低）
-    private static func defaultBodyToday(for forecast: Forecast?, cityName: String, locale: Locale) -> String {
+private func defaultBodyToday(for forecast: Forecast?, cityName: String, locale: Locale) -> String {
         guard let f = forecast,
               let code = f.daily.weather_code.first,
               let max = f.daily.temperature_2m_max.first,
               let min = f.daily.temperature_2m_min.first else {
-            return isJapanese(locale) ? "本日の天気のリマインダー" : "Reminder for today's weather"
+            return String(localized: .init("notification.body.today_default"))
         }
         let desc = weatherDescription(from: code, locale: locale)
-        if isJapanese(locale) {
-            return "\(cityName)：\(desc) 最高\(Int(max))℃ / 最低\(Int(min))℃"
-        } else {
             return "\(cityName): \(desc) High \(Int(max))°C / Low \(Int(min))°C"
-        }
-    }
+}
 
     /// Open-Meteo weather_code を簡易的な説明に変換
-    private static func weatherDescription(from code: Int, locale: Locale) -> String {
-        if isJapanese(locale) {
-            switch code {
-            case 0: return "快晴"
-            case 1: return "晴れ"
-            case 2: return "薄曇り"
-            case 3: return "曇天"
-            case 45, 48: return "霧"
-            case 51, 53, 55: return "霧雨"
-            case 61, 63, 65, 80, 81, 82: return "雨"
-            case 71, 73, 75, 85, 86: return "雪"
-            case 95, 96, 99: return "雷雨"
-            default: return "天気"
-            }
-        } else {
-            switch code {
-            case 0: return "Clear"
-            case 1: return "Sunny"
-            case 2: return "Partly cloudy"
-            case 3: return "Cloudy"
-            case 45, 48: return "Fog"
-            case 51, 53, 55: return "Drizzle"
-            case 61, 63, 65, 80, 81, 82: return "Rain"
-            case 71, 73, 75, 85, 86: return "Snow"
-            case 95, 96, 99: return "Thunderstorm"
-            default: return "Weather"
-            }
+private func weatherDescription(from code: Int, locale: Locale) -> String {
+        let key: String
+        switch code {
+        case 0: key = "weather.desc.clear"
+        case 1: key = "weather.desc.sunny"
+        case 2: key = "weather.desc.partly_cloudy"
+        case 3: key = "weather.desc.cloudy"
+        case 45, 48: key = "weather.desc.fog"
+        case 51, 53, 55: key = "weather.desc.drizzle"
+        case 61, 63, 65, 80, 81, 82: key = "weather.desc.rain"
+        case 71, 73, 75, 85, 86: key = "weather.desc.snow"
+        case 95, 96, 99: key = "weather.desc.thunderstorm"
+        default: key = "weather.desc.weather"
         }
+        return String(localized: .init(key))
     }
 
-    private static func willRainTomorrow(_ forecast: Forecast?) -> Bool {
+private func willRainTomorrow(_ forecast: Forecast?) -> Bool {
         guard let f = forecast else { return false }
-        let code = f.daily.weather_code.first ?? 0
+        let code: Int
+        if f.daily.weather_code.count > 1 {
+            code = f.daily.weather_code[1]
+        } else {
+            code = f.daily.weather_code.first ?? 0
+        }
         return [61,63,65,80,81,82,95,96,99].contains(code)
     }
 
-    private static func meetsTemp(_ forecast: Forecast?, threshold: Double, above: Bool) -> Bool {
+private func meetsTemp(_ forecast: Forecast?, threshold: Double, above: Bool) -> Bool {
         guard let f = forecast else { return false }
         let value = above ? (f.daily.temperature_2m_max.first ?? 0) : (f.daily.temperature_2m_min.first ?? 0)
         return above ? (value >= threshold) : (value <= threshold)
@@ -315,7 +306,7 @@ struct NotificationScheduler {
 
     #if DEBUG
     /// 保留中の通知をダンプ（このアプリの識別子のみ）
-    static func debugDumpPending(for cityId: Int? = nil) async {
+func debugDumpPending(for cityId: Int? = nil) async {
         let basePrefix = "forecast.reminder"
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()
@@ -333,4 +324,3 @@ struct NotificationScheduler {
         }
     }
     #endif
-}

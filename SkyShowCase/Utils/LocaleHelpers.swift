@@ -1,20 +1,6 @@
 // Utils/LocaleHelpers.swift
 import Foundation
 
-/// 現在のロケールが日本語 UI を優先すべきかどうか
-/// - Note: iOS 16 以降の `Locale.Language` / `Locale.Region` に対応しつつ、旧 API もフォールバック。
-@inline(__always)
-func isJapanese(_ locale: Locale) -> Bool {
-    if #available(iOS 16.0, *) {
-        if let code = locale.language.languageCode?.identifier, code == "ja" { return true }
-        if let region = locale.region?.identifier, region == "JP" { return true }
-    } else {
-        if let code = locale.languageCode, code == "ja" { return true }
-        if let region = locale.regionCode, region == "JP" { return true }
-    }
-    return locale.identifier.hasPrefix("ja")
-}
-
 /// 摂氏ではなく華氏を使うべき地域かどうかを判定
 /// - Regions that commonly use Fahrenheit: US, Bahamas, Belize, Cayman Islands, Palau
 @inline(__always)

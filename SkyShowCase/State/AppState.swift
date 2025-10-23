@@ -120,7 +120,7 @@ final class AppState {
             #if swift(>=5.7)
             let countryCode: String = {
                 if #available(iOS 16.0, *) { return placemark?.isoCountryCode ?? Locale.current.region?.identifier ?? "" }
-                return placemark?.isoCountryCode ?? Locale.current.regionCode ?? ""
+                return placemark?.isoCountryCode ?? Locale.current.region?.identifier ?? ""
             }()
             #else
             let countryCode: String = placemark?.isoCountryCode ?? Locale.current.regionCode ?? ""

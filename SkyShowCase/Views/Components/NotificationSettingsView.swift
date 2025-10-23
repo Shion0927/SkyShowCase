@@ -2,6 +2,7 @@
 import SwiftUI
 import Foundation
 import Darwin
+import UserNotifications
 
 /// 通知設定のフォーム（中央モーダル内に埋め込んで使う）
 struct NotificationSettingsView: View {
@@ -19,14 +20,14 @@ struct NotificationSettingsView: View {
 
             // 曜日選択（毎週のときのみ）
             if rule.frequency == .weekly {
-                Section(header: Text(isJapanese(locale) ? "曜日" : "Weekdays")) {
+                Section(header: Text(String(localized: .init("notification.weekdays")))) {
                     WeekdaySelector(selected: $rule.weekdays, locale: locale)
                 }
             }
 
             // しきい値（温度条件のときのみ）
             if rule.frequency == .tempAbove || rule.frequency == .tempBelow {
-                Section(header: Text(isJapanese(locale) ? "しきい値 (℃)" : "Threshold (°C)")) {
+                Section(header: Text(String(localized: .init("notification.threshold")))) {
                     Stepper(
                         value: Binding(
                             get: { Int(rule.temperature ?? (rule.frequency == .tempAbove ? 30 : 5)) },
@@ -41,10 +42,10 @@ struct NotificationSettingsView: View {
             }
 
             // 本日の通知（ON/OFF + 時刻）
-            Section(header: Text(isJapanese(locale) ? "本日の天気を通知" : "Today")) {
-                Toggle(isJapanese(locale) ? "本日の天気の通知を有効にする" : "Enable today", isOn: $rule.enableToday)
+            Section(header: Text(String(localized: .init("notification.today.header")))) {
+                Toggle(String(localized: .init("notification.today.enable")), isOn: $rule.enableToday)
                 HStack {
-                    Text(isJapanese(locale) ? "時間" : "Time")
+                    Text(String(localized: .init("notification.time")))
                     Spacer()
                     TimePicker(hour: $rule.todayHour, minute: $rule.todayMinute)
                         .disabled(!rule.enableToday)
@@ -52,10 +53,10 @@ struct NotificationSettingsView: View {
             }
 
             // 明日の通知（ON/OFF + 時刻）
-            Section(header: Text(isJapanese(locale) ? "明日の天気を通知" : "Tomorrow")) {
-                Toggle(isJapanese(locale) ? "明日の天気の通知を有効にする" : "Enable tomorrow", isOn: $rule.enableTomorrow)
+            Section(header: Text(String(localized: .init("notification.tomorrow.header")))) {
+                Toggle(String(localized: .init("notification.tomorrow.enable")), isOn: $rule.enableTomorrow)
                 HStack {
-                    Text(isJapanese(locale) ? "時間" : "Time")
+                    Text(String(localized: .init("notification.time")))
                     Spacer()
                     TimePicker(hour: $rule.tomorrowHour, minute: $rule.tomorrowMinute)
                         .disabled(!rule.enableTomorrow)
@@ -68,7 +69,7 @@ struct NotificationSettingsView: View {
                 Button {
                     onSave()
                 } label: {
-                    Text(isJapanese(locale) ? "保存" : "Save")
+                    Text(String(localized: .init("common.save")))
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
@@ -103,13 +104,13 @@ struct NotificationBell: View {
                     Button {
                         onOpenSettings()
                     } label: {
-                        Text(isJapanese(locale) ? "通知を編集" : "Edit notification")
+                        Text(String(localized: .init("notification.edit")))
                     }
 
                     Button(role: .destructive) {
                         onDisable()
                     } label: {
-                        Text(isJapanese(locale) ? "通知を解除" : "Disable notification")
+                        Text(String(localized: .init("notification.disable")))
                     }
                 } label: {
                     Image(systemName: "bell.fill")
@@ -127,12 +128,12 @@ private struct FrequencyChipGrid: View {
 
     private var items: [(NotificationRule.Frequency, String)] {
         [
-            (.daily,      isJapanese(locale) ? "毎日" : "Daily"),
-            (.weekly,     isJapanese(locale) ? "毎週" : "Weekly"),
-            (.oneTime,    isJapanese(locale) ? "1回のみ" : "One time"),
-            (.nextDayRain,isJapanese(locale) ? "次の雨の日" : "Next rainy day"),
-            (.tempAbove,  isJapanese(locale) ? "設定気温以上" : "Temp ≥"),
-            (.tempBelow,  isJapanese(locale) ? "設定気温以下" : "Temp ≤")
+            (.daily,       "notification.freq.daily"),
+            (.weekly,      "notification.freq.weekly"),
+            (.oneTime,     "notification.freq.one_time"),
+            (.nextDayRain, "notification.freq.next_rainy_day"),
+            (.tempAbove,   "notification.freq.temp_at_least"),
+            (.tempBelow,   "notification.freq.temp_at_most")
         ]
     }
 
@@ -145,7 +146,7 @@ private struct FrequencyChipGrid: View {
                 Button {
                     selection = freq
                 } label: {
-                    Text(label)
+                    Text(String(localized: .init(label)))
                         .font(.callout)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -193,13 +194,11 @@ struct WeekdaySelector: View {
     let locale: Locale
     var body: some View {
         // 1=Sun ... 7=Sat（Calendar準拠）
-        let symbols: [String] = {
-            if isJapanese(locale) {
-                return ["日", "月", "火", "水", "木", "金", "土"]
-            } else {
-                return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-            }
-        }()
+        let symbols: [String] = [
+            "weekday.sun.short", "weekday.mon.short", "weekday.tue.short",
+            "weekday.wed.short", "weekday.thu.short", "weekday.fri.short",
+            "weekday.sat.short"
+        ]
 
         let indices = Array(1...7)
 
@@ -210,7 +209,7 @@ struct WeekdaySelector: View {
                     if selected == nil { selected = [] }
                     if isOn { selected!.remove(w) } else { selected!.insert(w) }
                 } label: {
-                    Text(name)
+                    Text(String(localized: .init(name)))
                         .font(.callout)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)

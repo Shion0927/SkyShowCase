@@ -3,7 +3,6 @@ import SwiftUI
 import Observation
 
 struct SearchView: View {
-    @Environment(\.appConfig) private var config
     @Environment(AppState.self) private var state
     @State private var currentLocationCity: OpenMeteoCity?
     @State private var isFetchingLocation = false
@@ -18,8 +17,8 @@ struct SearchView: View {
             )
             SearchResultsSectionView()
         }
-        .navigationTitle(localizedTitle(for: config.locale))
-        .searchable(text: $state.searchText, prompt: localizedSearchPrompt(for: config.locale))
+        .navigationTitle("tab.search")
+        .searchable(text: $state.searchText, prompt: Text("search.prompt"))
         .onChange(of: state.searchText) { (_: String, new: String) in
             debounceSearch(new)
         }
@@ -60,13 +59,13 @@ func locationSubtitle(admin1: String?, countryCode: String) -> String {
 }
 
 private func localizedTitle(for locale: Locale) -> String {
-    return isJapanese(locale) ? "SkyShowcase" : "SkyShowcase"
+    return String(localized: .init("tab.search"))
 }
 
 private func localizedSearchResults(for locale: Locale) -> String {
-    return isJapanese(locale) ? "検索結果" : "Results"
+    return String(localized: .init("search.results"))
 }
 
 private func localizedSearchPrompt(for locale: Locale) -> String {
-    return isJapanese(locale) ? "都市名" : "City"
+    return String(localized: .init("search.prompt"))
 }

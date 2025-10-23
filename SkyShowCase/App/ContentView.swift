@@ -9,15 +9,15 @@ struct ContentView: View {
         TabView {
             NavigationStack {
                 SearchView()
-                    .navigationTitle(isJapanese(config.locale) ? "検索" : "Search")
+                    .navigationTitle("tab.search")
             }
-            .tabItem { Label(isJapanese(config.locale) ? "検索" : "Search", systemImage: "magnifyingglass") }
+            .tabItem { Label("tab.search", systemImage: "magnifyingglass") }
 
             NavigationStack {
                 FavoritesView()
-                    .navigationTitle(isJapanese(config.locale) ? "お気に入り" : "Favorites")
+                    .navigationTitle("tab.favorites")
             }
-            .tabItem { Label(isJapanese(config.locale) ? "お気に入り" : "Favorites", systemImage: "star.fill") }
+            .tabItem { Label("tab.favorites", systemImage: "star.fill") }
         }
         .tint(config.primaryTint)
         .environment(\.appConfig, config)
