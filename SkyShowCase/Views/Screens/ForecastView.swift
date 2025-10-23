@@ -227,7 +227,15 @@ struct ForecastView: View {
 
     private func localizedCurrentDetail(for locale: Locale, apparent: String, wind: Int) -> String {
         let format = String(localized: .init("forecast.current_detail"))
-        return String(format: format, locale: locale, apparent, wind)
+        // Format wind using MeasurementFormatter to avoid printf/NumberFormatter pitfalls
+        let measurement = Measurement(value: Double(wind), unit: UnitSpeed.metersPerSecond)
+        let mf = MeasurementFormatter()
+        mf.locale = locale
+        mf.unitOptions = .providedUnit
+        mf.numberFormatter.maximumFractionDigits = 0
+        mf.numberFormatter.minimumFractionDigits = 0
+        let windValue = mf.string(from: measurement) // e.g., "3 m/s"
+        return String(format: format, locale: locale, apparent, windValue)
     }
 
     private func localizedForecastHeader(for locale: Locale) -> String {

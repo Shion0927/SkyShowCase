@@ -252,13 +252,16 @@ struct NotificationScheduler {
         let max = f.daily.temperature_2m_max[idx]
         let min = f.daily.temperature_2m_min[idx]
         let desc = weatherDescription(from: code, locale: locale)
-        return "\(cityName): \(desc) High \(Int(max))°C / Low \(Int(min))°C"
-        }
+        let highValue = formatTemperature(max, locale: locale)
+        let lowValue  = formatTemperature(min, locale: locale)
+        let high = String(format: String(localized: .init("temp.high")), locale: locale, highValue)
+        let low  = String(format: String(localized: .init("temp.low")),  locale: locale, lowValue)
+        return "\(cityName): \(desc) \(high) / \(low)"
     }
 
 
     /// 本日用の本文（都市名＋天気＋最高/最低）
-private func defaultBodyToday(for forecast: Forecast?, cityName: String, locale: Locale) -> String {
+    private static func defaultBodyToday(for forecast: Forecast?, cityName: String, locale: Locale) -> String {
         guard let f = forecast,
               let code = f.daily.weather_code.first,
               let max = f.daily.temperature_2m_max.first,
@@ -266,11 +269,17 @@ private func defaultBodyToday(for forecast: Forecast?, cityName: String, locale:
             return String(localized: .init("notification.body.today_default"))
         }
         let desc = weatherDescription(from: code, locale: locale)
-            return "\(cityName): \(desc) High \(Int(max))°C / Low \(Int(min))°C"
-}
+        let highValue = formatTemperature(max, locale: locale)
+        let lowValue  = formatTemperature(min, locale: locale)
+        let high = String(format: String(localized: .init("temp.high")), locale: locale, highValue)
+        let low  = String(format: String(localized: .init("temp.low")),  locale: locale, lowValue)
+        return "\(cityName): \(desc) \(high) / \(low)"
+    }
+
+
 
     /// Open-Meteo weather_code を簡易的な説明に変換
-private func weatherDescription(from code: Int, locale: Locale) -> String {
+    private static func weatherDescription(from code: Int, locale: Locale) -> String {
         let key: String
         switch code {
         case 0: key = "weather.desc.clear"
@@ -287,7 +296,7 @@ private func weatherDescription(from code: Int, locale: Locale) -> String {
         return String(localized: .init(key))
     }
 
-private func willRainTomorrow(_ forecast: Forecast?) -> Bool {
+    private static func willRainTomorrow(_ forecast: Forecast?) -> Bool {
         guard let f = forecast else { return false }
         let code: Int
         if f.daily.weather_code.count > 1 {
@@ -298,7 +307,7 @@ private func willRainTomorrow(_ forecast: Forecast?) -> Bool {
         return [61,63,65,80,81,82,95,96,99].contains(code)
     }
 
-private func meetsTemp(_ forecast: Forecast?, threshold: Double, above: Bool) -> Bool {
+    private static func meetsTemp(_ forecast: Forecast?, threshold: Double, above: Bool) -> Bool {
         guard let f = forecast else { return false }
         let value = above ? (f.daily.temperature_2m_max.first ?? 0) : (f.daily.temperature_2m_min.first ?? 0)
         return above ? (value >= threshold) : (value <= threshold)
@@ -306,7 +315,7 @@ private func meetsTemp(_ forecast: Forecast?, threshold: Double, above: Bool) ->
 
     #if DEBUG
     /// 保留中の通知をダンプ（このアプリの識別子のみ）
-func debugDumpPending(for cityId: Int? = nil) async {
+    static func debugDumpPending(for cityId: Int? = nil) async {
         let basePrefix = "forecast.reminder"
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()
@@ -324,3 +333,4 @@ func debugDumpPending(for cityId: Int? = nil) async {
         }
     }
     #endif
+}
