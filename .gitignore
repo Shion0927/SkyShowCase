@@ -1,0 +1,105 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+# Thumbnails
+._*
+# Files that might appear on external disk
+.Spotlight-V100
+.Trashes
+# macOS-specific cache files
+ehthumbs.db
+Thumbs.db
+
+# Xcode
+#
+# Build products
+build/
+DerivedData/
+
+# User-specific Xcode settings
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+
+# Workspace settings
+*.xcscmblueprint
+*.xcworkspace/xcuserdata/
+
+# Swift Package Manager
+#
+# Dependencies
+/.build/
+# Xcode package cache
+/.swiftpm/xcode/
+# SwiftPM binary artifacts
+Artifacts/
+# SwiftPM plugins
+.swiftpm/plugins/
+
+# CocoaPods
+#
+Pods/
+Podfile.lock
+
+# Carthage
+#
+Carthage/Build/
+Carthage/Checkouts/
+Carthage/DerivedData/
+Carthage/Artifacts/
+
+# Accio dependency management
+Dependencies/
+.accio/
+
+# Fastlane
+#
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# SwiftLint
+.swiftlint.yml
+.swiftformat
+
+# AppCode
+.idea/
+*.iml
+
+# Xcode Server
+integration*
+
+# Output / logs
+*.log
+*.tmp
+*.bak
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# SwiftUI Previews cache
+.swiftUIPreviews/
+
+# Simulator / Device Data
+*.deviceinfo
+*.deviceSettings
+*.userlog
+
+# Archives and Distribution
+*.ipa
+*.dSYM
+*.xcarchive
+
+# Firebase / GoogleService info (if using)
+GoogleService-Info.plist
+
+# Environment / Secrets
+.env
+*.secret
