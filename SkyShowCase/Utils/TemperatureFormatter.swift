@@ -1,5 +1,25 @@
 // Utils/TemperatureFormatter.swift
+
 import Foundation
+
+// MARK: - Cached number formatters
+private final class _TempFormatters {
+    static let shared = _TempFormatters()
+    private init() {}
+
+    private var map: [String: NumberFormatter] = [:]
+
+    func nf(locale: Locale, fractionDigits: Int) -> NumberFormatter {
+        let key = locale.identifier + "#" + String(fractionDigits)
+        if let f = map[key] { return f }
+        let f = NumberFormatter()
+        f.locale = locale
+        f.minimumFractionDigits = fractionDigits
+        f.maximumFractionDigits = fractionDigits
+        map[key] = f
+        return f
+    }
+}
 
 /// 摂氏の実数値をロケール/設定に応じた文字列（℃ / ℉）で返す
 /// - Parameters:
@@ -14,10 +34,7 @@ func formatTemperature(_ celsius: Double,
                        forceFahrenheit: Bool? = nil,
                        fractionDigits: Int = 1) -> String
 {
-    let useF: Bool = {
-        if let force = forceFahrenheit { return force }
-        return shouldUseFahrenheit(locale)
-    }()
+    let useF = forceFahrenheit ?? shouldUseFahrenheit(locale)
 
     let value: Double
     let unitSymbol: String
@@ -30,11 +47,7 @@ func formatTemperature(_ celsius: Double,
         unitSymbol = "℃"
     }
 
-    let fmt = NumberFormatter()
-    fmt.locale = locale
-    fmt.minimumFractionDigits = fractionDigits
-    fmt.maximumFractionDigits = fractionDigits
-
+    let fmt = _TempFormatters.shared.nf(locale: locale, fractionDigits: fractionDigits)
     let num = fmt.string(from: NSNumber(value: value)) ?? String(format: "%.\(fractionDigits)f", value)
     return "\(num)\(unitSymbol)"
 }
