@@ -6,8 +6,37 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FE6C93E22EF3EE2700F4633B /* SkyShowCase_watch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = FE6C93D82EF3EE2500F4633B /* SkyShowCase_watch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		FE6C93E02EF3EE2700F4633B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FE6374DA2E6931870067C876 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FE6C93D72EF3EE2500F4633B;
+			remoteInfo = "SkyShowCase_watch Watch App";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FE6C93842EF3EA4800F4633B /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				FE6C93E22EF3EE2700F4633B /* SkyShowCase_watch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		FE6374E22E6931870067C876 /* SkyShowCase.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SkyShowCase.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FE6C93D82EF3EE2500F4633B /* SkyShowCase_watch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SkyShowCase_watch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +45,22 @@
 			path = SkyShowCase;
 			sourceTree = "<group>";
 		};
+		FE6C93D92EF3EE2500F4633B /* SkyShowCase_watch Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "SkyShowCase_watch Watch App";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		FE6374DF2E6931870067C876 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FE6C93D52EF3EE2500F4633B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				FE6374E42E6931870067C876 /* SkyShowCase */,
+				FE6C93D92EF3EE2500F4633B /* SkyShowCase_watch Watch App */,
 				FE6374E32E6931870067C876 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +83,7 @@
 			isa = PBXGroup;
 			children = (
 				FE6374E22E6931870067C876 /* SkyShowCase.app */,
+				FE6C93D82EF3EE2500F4633B /* SkyShowCase_watch Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -55,10 +98,12 @@
 				FE6374DE2E6931870067C876 /* Sources */,
 				FE6374DF2E6931870067C876 /* Frameworks */,
 				FE6374E02E6931870067C876 /* Resources */,
+				FE6C93842EF3EA4800F4633B /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				FE6C93E12EF3EE2700F4633B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				FE6374E42E6931870067C876 /* SkyShowCase */,
@@ -70,6 +115,28 @@
 			productReference = FE6374E22E6931870067C876 /* SkyShowCase.app */;
 			productType = "com.apple.product-type.application";
 		};
+		FE6C93D72EF3EE2500F4633B /* SkyShowCase_watch Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FE6C93E52EF3EE2700F4633B /* Build configuration list for PBXNativeTarget "SkyShowCase_watch Watch App" */;
+			buildPhases = (
+				FE6C93D42EF3EE2500F4633B /* Sources */,
+				FE6C93D52EF3EE2500F4633B /* Frameworks */,
+				FE6C93D62EF3EE2500F4633B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				FE6C93D92EF3EE2500F4633B /* SkyShowCase_watch Watch App */,
+			);
+			name = "SkyShowCase_watch Watch App";
+			packageProductDependencies = (
+			);
+			productName = "SkyShowCase_watch Watch App";
+			productReference = FE6C93D82EF3EE2500F4633B /* SkyShowCase_watch Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -77,11 +144,14 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1640;
+				LastSwiftUpdateCheck = 2610;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					FE6374E12E6931870067C876 = {
 						CreatedOnToolsVersion = 16.4;
+					};
+					FE6C93D72EF3EE2500F4633B = {
+						CreatedOnToolsVersion = 26.1;
 					};
 				};
 			};
@@ -101,12 +171,20 @@
 			projectRoot = "";
 			targets = (
 				FE6374E12E6931870067C876 /* SkyShowCase */,
+				FE6C93D72EF3EE2500F4633B /* SkyShowCase_watch Watch App */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		FE6374E02E6931870067C876 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FE6C93D62EF3EE2500F4633B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -123,7 +201,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FE6C93D42EF3EE2500F4633B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		FE6C93E12EF3EE2700F4633B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FE6C93D72EF3EE2500F4633B /* SkyShowCase_watch Watch App */;
+			targetProxy = FE6C93E02EF3EE2700F4633B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		FE6374EB2E6931880067C876 /* Debug */ = {
@@ -277,6 +370,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = study.SkyShowCase;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -307,9 +403,78 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = study.SkyShowCase;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		FE6C93E32EF3EE2700F4633B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8T7MV3LAPD;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SkyShowCase_watch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = study.SkyShowCase;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = study.SkyShowCase.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.6;
+			};
+			name = Debug;
+		};
+		FE6C93E42EF3EE2700F4633B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8T7MV3LAPD;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SkyShowCase_watch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = study.SkyShowCase;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = study.SkyShowCase.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.6;
 			};
 			name = Release;
 		};
@@ -330,6 +495,15 @@
 			buildConfigurations = (
 				FE6374EE2E6931880067C876 /* Debug */,
 				FE6374EF2E6931880067C876 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FE6C93E52EF3EE2700F4633B /* Build configuration list for PBXNativeTarget "SkyShowCase_watch Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FE6C93E32EF3EE2700F4633B /* Debug */,
+				FE6C93E42EF3EE2700F4633B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
