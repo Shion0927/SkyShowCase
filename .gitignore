@@ -103,3 +103,8 @@ GoogleService-Info.plist
 # Environment / Secrets
 .env
 *.secret
+
+*.swp // これも指定しておくと便利
+
+UserInterfaceState.xcuserstate // ここで指定
+
