@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CurrentLocationSectionView: View {
     @Environment(\.appConfig) private var config
-    @Binding var currentLocationCity: OpenMeteoCity?
+    @Binding var currentLocationCity: City?
     @Binding var isFetchingLocation: Bool
     let fetchCurrentLocation: () async -> Void
 

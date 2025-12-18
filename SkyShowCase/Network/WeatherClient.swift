@@ -1,11 +1,15 @@
 import Foundation
 
+private struct GeocodingResponse: Decodable {
+    let results: [City]?
+}
+
 struct WeatherClient {
     static let shared = WeatherClient()
     private let cache = WeatherCache()
 
-    // Search cities via Open-Meteo Geocoding
-    func searchCities(query: String) async throws -> [OpenMeteoCity] {
+    // Search cities via geocoding (currently Open-Meteo Geocoding)
+    func searchCities(query: String) async throws -> [City] {
         if let cached = await cache.city(for: query) { return cached }
         guard var comps = URLComponents(string: AppConfig().endpoint.geocodingBase) else {
             throw WeatherError.invalidURL
@@ -17,41 +21,119 @@ struct WeatherClient {
             .init(name: "format", value: "json")
         ]
         guard let url = comps.url else { throw WeatherError.invalidURL }
-        let geoResp: OpenMeteoGeocodingResponse = try await fetch(url, decode: OpenMeteoGeocodingResponse.self)
+        let geoResp: GeocodingResponse = try await fetch(url, decode: GeocodingResponse.self)
         guard let results = geoResp.results, !results.isEmpty else { throw WeatherError.emptyResult }
         await cache.setCity(results, for: query)
         return results
     }
 
-    // Fetch forecast (current + daily) via Open-Meteo
-    func fetchForecast(lat: Double, lon: Double) async throws -> Forecast {
-        guard var comps = URLComponents(string: AppConfig().endpoint.forecastBase) else {
+    // Fetch forecast (current + daily) via Weathernews WXTech (ss1wx)
+    func fetchForecast(lat: Double, lon: Double) async throws -> WeatherForecast {
+        // WXTech ss1wx endpoint
+        guard var comps = URLComponents(string: AppConfig().endpoint.wxtechForecastBase) else {
             throw WeatherError.invalidURL
         }
         comps.queryItems = [
-            .init(name: "latitude", value: "\(lat)"),
-            .init(name: "longitude", value: "\(lon)"),
-            .init(name: "current_weather", value: "true"),
-            .init(name: "daily", value: "weathercode,temperature_2m_max,temperature_2m_min"),
-            .init(name: "timezone", value: "auto")
+            .init(name: "lat", value: "\(lat)"),
+            .init(name: "lon", value: "\(lon)")
         ]
         guard let url = comps.url else { throw WeatherError.invalidURL }
-        let resp = try await fetch(url, decode: OpenMeteoResponse.self, retries: 1)
 
-        let current = Forecast.Current(
-            temperature_2m: resp.current_weather.temperature,
-            weather_code: resp.current_weather.weathercode,
-            apparent_temperature: resp.current_weather.temperature,
-            wind_speed_10m: resp.current_weather.windspeed,
-            time: resp.current_weather.time
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        // API key is required by WXTech
+        request.setValue(AppConfig().apiKey, forHTTPHeaderField: "X-API-Key")
+
+        let resp = try await fetch(request, decode: WeatherResponse.self, retries: 1)
+
+        if let errs = resp.errors, !errs.isEmpty {
+            let joined = errs.map { "\($0.code): \($0.message)" }.joined(separator: " / ")
+            throw WeatherError.other(NSError(domain: "WXTech", code: -1, userInfo: [NSLocalizedDescriptionKey: joined]))
+        }
+        guard let data = resp.wxdata?.first else {
+            throw WeatherError.emptyResult
+        }
+
+        // Map WXTech -> app unified WeatherForecast
+        let currentSrf = data.srf?.first
+        let currentTemp = Double(currentSrf?.temp ?? -9999)
+        let currentWx = currentSrf?.wx ?? -9999
+        let currentWind = Double(currentSrf?.wndspd ?? -9999)
+        let currentTime = currentSrf?.date ?? ""
+
+        let current = WeatherForecast.Current(
+            temperature_2m: currentTemp,
+            weather_code: currentWx,
+            apparent_temperature: currentTemp,
+            wind_speed_10m: currentWind,
+            time: currentTime
         )
-        let daily = Forecast.Daily(
-            time: resp.daily.time,
-            weather_code: resp.daily.weathercode,
-            temperature_2m_max: resp.daily.temperature_2m_max,
-            temperature_2m_min: resp.daily.temperature_2m_min
+
+        let mrf = data.mrf ?? []
+        let daily = WeatherForecast.Daily(
+            time: mrf.map { $0.date },
+            weather_code: mrf.map { $0.wx },
+            temperature_2m_max: mrf.map { Double($0.maxtemp ?? -9999) },
+            temperature_2m_min: mrf.map { Double($0.mintemp ?? -9999) }
         )
-        return Forecast(current: current, daily: daily)
+
+        return WeatherForecast(current: current, daily: daily)
+    }
+
+    // Shared fetch for URLRequest (allows headers) with optional retries
+    private func fetch<T: Decodable>(_ request: URLRequest, decode: T.Type, retries: Int = 0) async throws -> T {
+        var attempt = 0
+        var delayNs: UInt64 = 300_000_000
+        while true {
+            do {
+#if DEBUG
+                print("[WeatherClient] ▶︎ Request: \(request.httpMethod ?? "GET") \(request.url?.absoluteString ?? "<nil>")")
+                if let headers = request.allHTTPHeaderFields, !headers.isEmpty {
+                    print("[WeatherClient] ▶︎ Headers: \(headers)")
+                }
+#endif
+                let (data, resp) = try await URLSession.shared.data(for: request)
+#if DEBUG
+                if let http = resp as? HTTPURLResponse {
+                    print("[WeatherClient] ◀︎ Response: status=\(http.statusCode) url=\(http.url?.absoluteString ?? "<nil>")")
+                    print("[WeatherClient] ◀︎ ResponseHeaders: \(http.allHeaderFields)")
+                }
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("[WeatherClient] ◀︎ Body: \n\(jsonString)")
+                } else {
+                    print("[WeatherClient] ◀︎ Body: <non-utf8 data, \(data.count) bytes>")
+                }
+#endif
+                guard let http = resp as? HTTPURLResponse else { throw WeatherError.other(URLError(.badServerResponse)) }
+                guard (200..<300).contains(http.statusCode) else { throw WeatherError.serverError(status: http.statusCode) }
+#if DEBUG
+                do {
+                    let decoded = try JSONDecoder().decode(T.self, from: data)
+                    return decoded
+                } catch {
+                    print("[WeatherClient] ❌ Decode error: \(error)")
+                    if let jsonString = String(data: data, encoding: .utf8) {
+                        print("[WeatherClient] ❌ Failed body: \n\(jsonString)")
+                    } else {
+                        print("[WeatherClient] ❌ Failed body: <non-utf8 data, \(data.count) bytes>")
+                    }
+                    throw error
+                }
+#else
+                return try JSONDecoder().decode(T.self, from: data)
+#endif
+            } catch is CancellationError {
+                throw WeatherError.cancelled
+            } catch {
+                if attempt < retries {
+                    attempt += 1
+                    try await Task.sleep(nanoseconds: delayNs)
+                    delayNs *= 2
+                    continue
+                }
+                throw (error as? WeatherError) ?? WeatherError.other(error)
+            }
+        }
     }
 
     // Shared fetch with optional retries
@@ -60,10 +142,39 @@ struct WeatherClient {
         var delayNs: UInt64 = 300_000_000
         while true {
             do {
+#if DEBUG
+                print("[WeatherClient] ▶︎ Request: GET \(url.absoluteString)")
+#endif
                 let (data, resp) = try await URLSession.shared.data(from: url)
+#if DEBUG
+                if let http = resp as? HTTPURLResponse {
+                    print("[WeatherClient] ◀︎ Response: status=\(http.statusCode) url=\(http.url?.absoluteString ?? url.absoluteString)")
+                    print("[WeatherClient] ◀︎ ResponseHeaders: \(http.allHeaderFields)")
+                }
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("[WeatherClient] ◀︎ Body: \n\(jsonString)")
+                } else {
+                    print("[WeatherClient] ◀︎ Body: <non-utf8 data, \(data.count) bytes>")
+                }
+#endif
                 guard let http = resp as? HTTPURLResponse else { throw WeatherError.other(URLError(.badServerResponse)) }
                 guard (200..<300).contains(http.statusCode) else { throw WeatherError.serverError(status: http.statusCode) }
+#if DEBUG
+                do {
+                    let decoded = try JSONDecoder().decode(T.self, from: data)
+                    return decoded
+                } catch {
+                    print("[WeatherClient] ❌ Decode error: \(error)")
+                    if let jsonString = String(data: data, encoding: .utf8) {
+                        print("[WeatherClient] ❌ Failed body: \n\(jsonString)")
+                    } else {
+                        print("[WeatherClient] ❌ Failed body: <non-utf8 data, \(data.count) bytes>")
+                    }
+                    throw error
+                }
+#else
                 return try JSONDecoder().decode(T.self, from: data)
+#endif
             } catch is CancellationError {
                 throw WeatherError.cancelled
             } catch {

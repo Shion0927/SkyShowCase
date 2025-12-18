@@ -1,10 +1,9 @@
-
 import SwiftUI
 import Observation
 
 struct SearchView: View {
     @Environment(AppState.self) private var state
-    @State private var currentLocationCity: OpenMeteoCity?
+    @State private var currentLocationCity: City?
     @State private var isFetchingLocation = false
 
     var body: some View {
@@ -18,11 +17,10 @@ struct SearchView: View {
             SearchResultsSectionView()
         }
         .navigationTitle("tab.search")
-        .searchable(text: $state.searchText, prompt: Text("search.prompt"))
         .onChange(of: state.searchText) { (_: String, new: String) in
             debounceSearch(new)
         }
-        .navigationDestination(for: OpenMeteoCity.self) { city in
+        .navigationDestination(for: City.self) { city in
             ForecastView(city: city)
         }
         .task {
@@ -34,6 +32,13 @@ struct SearchView: View {
             if state.isSearching {
                 ToolbarItem(placement: .topBarTrailing) { ProgressView() }
             }
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .safeAreaInset(edge: .top) {
+            CustomSearchBar(text: $state.searchText, placeholder: String(localized: .init("search.prompt")))
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .background(.bar)
         }
     }
 
@@ -68,4 +73,22 @@ private func localizedSearchResults(for locale: Locale) -> String {
 
 private func localizedSearchPrompt(for locale: Locale) -> String {
     return String(localized: .init("search.prompt"))
+}
+
+private struct CustomSearchBar: View {
+    @Binding var text: String
+    var placeholder: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField(placeholder, text: $text)
+                .textFieldStyle(.plain)
+                .disableAutocorrection(true)
+                .autocapitalization(.none)
+        }
+        .padding(10)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
 }

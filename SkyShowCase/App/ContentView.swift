@@ -6,8 +6,18 @@ struct ContentView: View {
     @State private var selectedTab: Tab = .search
     @State private var favoritesPath = NavigationPath()
     @AppStorage("temperatureUnitPref") private var temperatureUnitPrefRaw: String = "system"
+    @AppStorage("appearancePref") private var appearancePrefRaw: String = "system"
+
+    private var preferredScheme: ColorScheme? {
+        switch appearancePrefRaw {
+        case "light": return .light
+        case "dark":  return .dark
+        default:       return nil
+        }
+    }
+
     @State private var config = AppConfig()
-    @Environment(\.locale) private var systemLocale   // ← システムのロケールを監視
+    @Environment(\.locale) private var systemLocale
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -36,7 +46,8 @@ struct ContentView: View {
         .id(temperatureUnitPrefRaw)
         .tint(config.primaryTint)
         .environment(\.appConfig, config)
-        .environment(\.locale, config.locale)  // ← AppConfigのlocaleを全体に注入
+        .environment(\.locale, config.locale)
+        .preferredColorScheme(preferredScheme)
         .onAppear {
             config.locale = systemLocale       // ← 起動時に反映
         }
@@ -45,7 +56,7 @@ struct ContentView: View {
         }
         .onChange(of: selectedTab) { _, newValue in
             if newValue == .favorites {
-                favoritesPath = NavigationPath() // always pop to root when Favorites tab is selected
+                favoritesPath = NavigationPath() 
             }
         }
     }
