@@ -1,8 +1,6 @@
 // Utils/WeatherSymbols.swift
 import Foundation
 
-/// Open-Meteo の WMO weather code を SF Symbols 名に変換
-/// 参考: https://open-meteo.com/en/docs
 @inline(__always)
 func weatherSymbol(for code: Int) -> String {
     switch code {

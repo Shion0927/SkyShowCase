@@ -45,7 +45,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "肌寒い：ライトアウター"
+            "value" : "肌寒い：薄手の上着を推奨"
           }
         }
       }
@@ -347,6 +347,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "体感: %1$@　風速: %2$@"
+          }
+        }
+      }
+    },
+    "forecast.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekly"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "週間予報"
           }
         }
       }
@@ -731,6 +748,7 @@
       }
     },
     "search.prompt" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -814,6 +832,23 @@
         }
       }
     },
+    "settings.picker.theme" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テーマ"
+          }
+        }
+      }
+    },
     "settings.section.misc" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -844,6 +879,91 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "温度の単位"
+          }
+        }
+      }
+    },
+    "settings.section.theme" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テーマ"
+          }
+        }
+      }
+    },
+    "settings.theme.dark" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ダーク"
+          }
+        }
+      }
+    },
+    "settings.theme.light" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ライト"
+          }
+        }
+      }
+    },
+    "settings.theme.note.applies_immediately" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes apply immediately."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "変更はすぐに反映されます。"
+          }
+        }
+      }
+    },
+    "settings.theme.system" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "システム"
           }
         }
       }
@@ -888,13 +1008,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Match System"
+            "value" : "System"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "システムに合わせる"
+            "value" : "システム"
           }
         }
       }

@@ -6,11 +6,14 @@ struct AppConfig {
     var primaryTint: Color = .blue
     var locale: Locale = .current
     var endpoint = Endpoint()
+    /// Weathernews WXTech API key (ss1wx). Set via environment or replace with your secure storage.
+    var apiKey: String = "kKmcTu2Rc6a16T4juPzMKa6wDx0tuJIC7RRfG8bZ"
 
     struct Endpoint {
-        // Open-Meteo Geocoding & Forecast
+        // Geocoding: Open-Meteo (temporary, can be swapped later)
         let geocodingBase = "https://geocoding-api.open-meteo.com/v1/search"
-        let forecastBase  = "https://api.open-meteo.com/v1/forecast"
+        // Forecast: Weathernews WXTech (ss1wx)
+        let wxtechForecastBase = "https://wxtech.weathernews.com/api/v1/ss1wx"
     }
 }
 

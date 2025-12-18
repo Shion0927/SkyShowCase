@@ -1,7 +1,7 @@
 import Foundation
 
 struct ClothingAdvisor {
-    static func advice(current: Forecast.Current, locale: Locale) -> String {
+    static func advice(current: WeatherForecast.Current, locale: Locale) -> String {
         let t = current.temperature_2m
         let apparent = current.apparent_temperature
         let wind = current.wind_speed_10m

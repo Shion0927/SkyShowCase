@@ -33,7 +33,7 @@ struct NotificationScheduler {
     static func schedule(rule: NotificationRule,
                          for cityId: Int,
                          cityName: String,
-                         forecast: Forecast?,
+                         forecast: WeatherForecast?,
                          locale: Locale) async -> Bool {
         let center = UNUserNotificationCenter.current()
         var scheduledCount = 0
@@ -60,15 +60,29 @@ struct NotificationScheduler {
         // トリガーを構築
         switch rule.frequency {
         case .oneTime:
-            guard let dc = nextDateComponents(hour: rule.hour, minute: rule.minute, weekday: nil) else { return false }
             content.body = defaultBody(for: forecast, cityName: cityName, locale: locale)
-            let req = UNNotificationRequest(
-                identifier: id(for: cityId),
-                content: content,
-                trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
-            )
-            try? await center.add(req)
-            scheduledCount += 1
+            if let dc = todayDateComponents(hour: rule.hour, minute: rule.minute) {
+                let req = UNNotificationRequest(
+                    identifier: id(for: cityId),
+                    content: content,
+                    trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
+                )
+                try? await center.add(req)
+                scheduledCount += 1
+            } else {
+                // already passed today -> schedule next minute so it still fires today
+                var cal = Calendar.current
+                cal.timeZone = .current
+                let fire = cal.date(byAdding: .minute, value: 1, to: Date()) ?? Date().addingTimeInterval(60)
+                let dc = cal.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
+                let req = UNNotificationRequest(
+                    identifier: id(for: cityId),
+                    content: content,
+                    trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
+                )
+                try? await center.add(req)
+                scheduledCount += 1
+            }
 
         case .daily:
             var dc = DateComponents()
@@ -88,7 +102,7 @@ struct NotificationScheduler {
             let body = defaultBody(for: forecast, cityName: cityName, locale: locale)
             for wd in wds {
                 var dc = DateComponents()
-                dc.weekday = wd
+                dc.weekday = previousWeekday(wd)
                 dc.hour = rule.hour
                 dc.minute = rule.minute
                 let req = UNNotificationRequest(
@@ -102,41 +116,80 @@ struct NotificationScheduler {
 
         case .nextDayRain:
             if willRainTomorrow(forecast) {
-                guard let dc = nextDateComponents(hour: rule.hour, minute: rule.minute, weekday: nil) else { return false }
                 content.body = defaultBody(for: forecast, cityName: cityName, locale: locale)
-                let req = UNNotificationRequest(
-                    identifier: id(for: cityId),
-                    content: content,
-                    trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
-                )
-                try? await center.add(req)
-                scheduledCount += 1
+                if let dc = todayDateComponents(hour: rule.hour, minute: rule.minute) {
+                    let req = UNNotificationRequest(
+                        identifier: id(for: cityId),
+                        content: content,
+                        trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
+                    )
+                    try? await center.add(req)
+                    scheduledCount += 1
+                } else {
+                    var cal = Calendar.current
+                    cal.timeZone = .current
+                    let fire = cal.date(byAdding: .minute, value: 1, to: Date()) ?? Date().addingTimeInterval(60)
+                    let dc = cal.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
+                    let req = UNNotificationRequest(
+                        identifier: id(for: cityId),
+                        content: content,
+                        trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
+                    )
+                    try? await center.add(req)
+                    scheduledCount += 1
+                }
             } // 条件不成立なら登録しない（ルール保存は呼び出し側で）
 
         case .tempAbove:
             if meetsTemp(forecast, threshold: rule.temperature ?? 30, above: true) {
-                guard let dc = nextDateComponents(hour: rule.hour, minute: rule.minute, weekday: nil) else { return false }
                 content.body = defaultBody(for: forecast, cityName: cityName, locale: locale)
-                let req = UNNotificationRequest(
-                    identifier: id(for: cityId),
-                    content: content,
-                    trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
-                )
-                try? await center.add(req)
-                scheduledCount += 1
+                if let dc = todayDateComponents(hour: rule.hour, minute: rule.minute) {
+                    let req = UNNotificationRequest(
+                        identifier: id(for: cityId),
+                        content: content,
+                        trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
+                    )
+                    try? await center.add(req)
+                    scheduledCount += 1
+                } else {
+                    var cal = Calendar.current
+                    cal.timeZone = .current
+                    let fire = cal.date(byAdding: .minute, value: 1, to: Date()) ?? Date().addingTimeInterval(60)
+                    let dc = cal.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
+                    let req = UNNotificationRequest(
+                        identifier: id(for: cityId),
+                        content: content,
+                        trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
+                    )
+                    try? await center.add(req)
+                    scheduledCount += 1
+                }
             }
 
         case .tempBelow:
             if meetsTemp(forecast, threshold: rule.temperature ?? 5, above: false) {
-                guard let dc = nextDateComponents(hour: rule.hour, minute: rule.minute, weekday: nil) else { return false }
                 content.body = defaultBody(for: forecast, cityName: cityName, locale: locale)
-                let req = UNNotificationRequest(
-                    identifier: id(for: cityId),
-                    content: content,
-                    trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
-                )
-                try? await center.add(req)
-                scheduledCount += 1
+                if let dc = todayDateComponents(hour: rule.hour, minute: rule.minute) {
+                    let req = UNNotificationRequest(
+                        identifier: id(for: cityId),
+                        content: content,
+                        trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
+                    )
+                    try? await center.add(req)
+                    scheduledCount += 1
+                } else {
+                    var cal = Calendar.current
+                    cal.timeZone = .current
+                    let fire = cal.date(byAdding: .minute, value: 1, to: Date()) ?? Date().addingTimeInterval(60)
+                    let dc = cal.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
+                    let req = UNNotificationRequest(
+                        identifier: id(for: cityId),
+                        content: content,
+                        trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
+                    )
+                    try? await center.add(req)
+                    scheduledCount += 1
+                }
             }
         }
 
@@ -145,7 +198,7 @@ struct NotificationScheduler {
     }
 
     // MARK: Per-day (today / tomorrow) one-shot scheduling
-    static func scheduleToday(for cityId: Int, cityName: String, hour: Int, minute: Int, locale: Locale, forecast: Forecast?) async {
+    static func scheduleToday(for cityId: Int, cityName: String, hour: Int, minute: Int, locale: Locale, forecast: WeatherForecast?) async {
         guard let dc = todayDateComponents(hour: hour, minute: minute) else { return }
         let center = UNUserNotificationCenter.current()
         let content = UNMutableNotificationContent()
@@ -162,18 +215,33 @@ struct NotificationScheduler {
         #endif
     }
 
-    static func scheduleTomorrow(for cityId: Int, cityName: String, hour: Int, minute: Int, locale: Locale, forecast: Forecast?) async {
-        let dc = tomorrowDateComponents(hour: hour, minute: minute)
+    static func scheduleTomorrow(for cityId: Int, cityName: String, hour: Int, minute: Int, locale: Locale, forecast: WeatherForecast?) async {
         let center = UNUserNotificationCenter.current()
         let content = UNMutableNotificationContent()
         content.title = String(localized: .init("notification.title.tomorrow"))
         content.body = defaultBody(for: forecast, cityName: cityName, locale: locale)
-        let req = UNNotificationRequest(
-            identifier: id(for: cityId) + ".tomorrow",
-            content: content,
-            trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
-        )
-        try? await center.add(req)
+
+        // Schedule for *today* at the specified time if possible; otherwise, schedule ASAP (next minute)
+        if let dc = todayDateComponents(hour: hour, minute: minute) {
+            let req = UNNotificationRequest(
+                identifier: id(for: cityId) + ".tomorrow",
+                content: content,
+                trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
+            )
+            try? await center.add(req)
+        } else {
+            // The chosen time has already passed today. Schedule soon (next minute) so the user still receives it *today*.
+            var cal = Calendar.current
+            cal.timeZone = .current
+            let fire = cal.date(byAdding: .minute, value: 1, to: Date()) ?? Date().addingTimeInterval(60)
+            let dc = cal.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
+            let req = UNNotificationRequest(
+                identifier: id(for: cityId) + ".tomorrow",
+                content: content,
+                trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
+            )
+            try? await center.add(req)
+        }
         #if DEBUG
         await debugDumpPending(for: cityId)
         #endif
@@ -234,6 +302,8 @@ struct NotificationScheduler {
         return DateComponents(hour: hour, minute: minute)
     }
 
+    private static func previousWeekday(_ wd: Int) -> Int { wd == 1 ? 7 : (wd - 1) }
+
     private static func bodyContent(defaultText: String, locale: Locale) -> UNMutableNotificationContent {
         let c = UNMutableNotificationContent()
         c.title = String(localized: .init("notification.title.reminder"))
@@ -242,7 +312,7 @@ struct NotificationScheduler {
     }
 
     /// 明日用の本文（都市名＋天気＋最高/最低）
-    private static func defaultBody(for forecast: Forecast?, cityName: String, locale: Locale) -> String {
+    private static func defaultBody(for forecast: WeatherForecast?, cityName: String, locale: Locale) -> String {
         guard let f = forecast else {
             return String(localized: .init("notification.body.reminder_default"))
         }
@@ -261,7 +331,7 @@ struct NotificationScheduler {
 
 
     /// 本日用の本文（都市名＋天気＋最高/最低）
-    private static func defaultBodyToday(for forecast: Forecast?, cityName: String, locale: Locale) -> String {
+    private static func defaultBodyToday(for forecast: WeatherForecast?, cityName: String, locale: Locale) -> String {
         guard let f = forecast,
               let code = f.daily.weather_code.first,
               let max = f.daily.temperature_2m_max.first,
@@ -296,7 +366,7 @@ struct NotificationScheduler {
         return String(localized: .init(key))
     }
 
-    private static func willRainTomorrow(_ forecast: Forecast?) -> Bool {
+    private static func willRainTomorrow(_ forecast: WeatherForecast?) -> Bool {
         guard let f = forecast else { return false }
         let code: Int
         if f.daily.weather_code.count > 1 {
@@ -307,7 +377,7 @@ struct NotificationScheduler {
         return [61,63,65,80,81,82,95,96,99].contains(code)
     }
 
-    private static func meetsTemp(_ forecast: Forecast?, threshold: Double, above: Bool) -> Bool {
+    private static func meetsTemp(_ forecast: WeatherForecast?, threshold: Double, above: Bool) -> Bool {
         guard let f = forecast else { return false }
         let value = above ? (f.daily.temperature_2m_max.first ?? 0) : (f.daily.temperature_2m_min.first ?? 0)
         return above ? (value >= threshold) : (value <= threshold)

@@ -1,62 +1,64 @@
 import Foundation
 
-// MARK: - Geocoding
-struct OpenMeteoGeocodingResponse: Decodable {
-    let results: [OpenMeteoCity]?
+// MARK: - Weathernews WXTech API Response (ss1wx)
+
+// Root response
+struct WeatherResponse: Decodable {
+    let requestId: String?
+    let wxdata: [WeatherData]?
+    let errors: [WXError]?
+
+    enum CodingKeys: String, CodingKey {
+        case requestId
+        case wxdata
+        case errors
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.requestId = try container.decodeIfPresent(String.self, forKey: .requestId)
+        self.wxdata = try container.decodeIfPresent([WeatherData].self, forKey: .wxdata)
+        self.errors = try container.decodeIfPresent([WXError].self, forKey: .errors)
+    }
 }
 
-struct OpenMeteoCity: Codable, Hashable, Identifiable {
-    let id: Int
-    let name: String
-    let latitude: Double
-    let longitude: Double
-    let country: String
-    let country_code: String
-    let admin1: String?
+// Error object
+struct WXError: Decodable {
+    let code: String
+    let message: String
 }
 
-// MARK: - Country helper (JP only localized)
+// Weather data per requested coordinate
+struct WeatherData: Decodable {
+    let lat: Double
+    let lon: Double
+    let srf: [ShortRangeForecast]?
+    let mrf: [MediumRangeForecast]?
+}
+
+// MARK: - Short Range Forecast (72h / hourly)
+struct ShortRangeForecast: Decodable {
+    let date: String
+    let wx: Int
+    let temp: Float?
+    let prec: Float?
+    let arpress: Float?
+    let wndspd: Float?
+    let wnddir: Int?
+    let rhum: Int?
+}
+
+// MARK: - Medium Range Forecast (10 days / daily)
+struct MediumRangeForecast: Decodable {
+    let date: String
+    let wx: Int
+    let maxtemp: Float?
+    let mintemp: Float?
+    let pop: Int?
+}
+
 func countryName(from code: String?) -> String? {
-    guard let code = code else { return nil }
-    switch code.uppercased() {
-    case "JP": return "日本"
-    default: return code
-    }
-}
-
-// MARK: - Open-Meteo Forecast
-struct OpenMeteoResponse: Decodable {
-    struct CurrentWeather: Decodable {
-        let temperature: Double
-        let windspeed: Double
-        let weathercode: Int
-        let time: String
-    }
-    struct Daily: Decodable {
-        let time: [String]
-        let weathercode: [Int]
-        let temperature_2m_max: [Double]
-        let temperature_2m_min: [Double]
-    }
-    let current_weather: CurrentWeather
-    let daily: Daily
-}
-
-// MARK: - App Unified Model
-struct Forecast: Decodable {
-    struct Current: Decodable {
-        let temperature_2m: Double
-        let weather_code: Int
-        let apparent_temperature: Double
-        let wind_speed_10m: Double
-        let time: String
-    }
-    struct Daily: Decodable {
-        let time: [String]
-        let weather_code: [Int]
-        let temperature_2m_max: [Double]
-        let temperature_2m_min: [Double]
-    }
-    let current: Current
-    let daily: Daily
+    guard let code, !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+    let upper = code.uppercased()
+    return Locale.current.localizedString(forRegionCode: upper) ?? upper
 }

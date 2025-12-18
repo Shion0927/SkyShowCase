@@ -5,7 +5,7 @@ import Observation
 
 struct ForecastView: View {
     @Environment(\.appConfig) private var config
-    let city: OpenMeteoCity
+    let city: City
     @Environment(AppState.self) private var state
     @State private var isAlive = false
     @State private var asyncTask: Task<Void, Never>? = nil
@@ -30,8 +30,7 @@ struct ForecastView: View {
                 // Current weather
                 Section {
                     HStack(spacing: 16) {
-                        Image(systemName: weatherSymbol(for: f.current.weather_code))
-                            .font(.system(size: 44))
+                        WeatherIconView(code: f.current.weather_code, size: 44)
                         VStack(alignment: .leading) {
                             Text("\(formatTemperature(f.current.temperature_2m, locale: config.locale))")
                                 .font(.system(size: 38, weight: .bold))
@@ -51,12 +50,22 @@ struct ForecastView: View {
                 // 7-day forecast
                 Section(header: Text(localizedForecastHeader(for: config.locale))) {
                     ForEach(0..<min(f.daily.time.count, 7), id: \.self) { i in
-                        HStack {
+                        HStack(alignment: .center, spacing: 0) {
+                            // Left: date (flex)
                             Text(shortDateText(f.daily.time[i], locale: config.locale))
-                            Spacer()
-                            Image(systemName: weatherSymbol(for: f.daily.weather_code[i]))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            // Middle: fixed margin between date and icon
+                            Spacer().frame(width: 24)
+
+                            // Right: aligned icon + temperature
+                            WeatherIconView(code: f.daily.weather_code[i], size: 30)
+                                .frame(width: 34, alignment: .leading)
+                                .padding(.trailing, 8)
+
                             Text("\(formatTemperature(f.daily.temperature_2m_min[i], locale: config.locale)) - \(formatTemperature(f.daily.temperature_2m_max[i], locale: config.locale))")
                                 .monospacedDigit()
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                 }
@@ -261,7 +270,7 @@ struct ForecastView: View {
         // Cancel any previous delayed task and schedule a new one that we can cancel on disappear
         snackTask?.cancel()
         snackTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled, isAlive else { return }
             withAnimation(.easeOut(duration: 0.25)) { showSnackbar = false }
         }
@@ -302,4 +311,76 @@ struct ForecastView: View {
             return false
         }
     }
+
+    // MARK: - Networking helpers (logging/decoding)
+    private func makeJSONDecoder() -> JSONDecoder {
+        let d = JSONDecoder()
+        d.keyDecodingStrategy = .useDefaultKeys
+        d.dateDecodingStrategy = .iso8601
+        return d
+    }
+
+    private func decodeOrLog<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+#if DEBUG
+        do {
+            return try makeJSONDecoder().decode(T.self, from: data)
+        } catch {
+            print("[WeatherClient] ❌ Decode error: \(error)")
+            if let s = String(data: data, encoding: .utf8) {
+                print("[WeatherClient] ❌ Failed body: \n\(s)")
+            } else {
+                print("[WeatherClient] ❌ Failed body: <non-utf8 data, \(data.count) bytes>")
+            }
+            throw error
+        }
+#else
+        return try makeJSONDecoder().decode(T.self, from: data)
+#endif
+    }
+
+#if DEBUG
+    private func logRequest(_ request: URLRequest) {
+        print("[WeatherClient] ▶︎ Request: \(request.httpMethod ?? "GET") \(request.url?.absoluteString ?? "<nil>")")
+        if let headers = request.allHTTPHeaderFields, !headers.isEmpty {
+            print("[WeatherClient] ▶︎ Headers: \(headers)")
+        }
+    }
+
+    private func logResponse(_ response: URLResponse, data: Data, defaultURL: URL?) {
+        if let http = response as? HTTPURLResponse {
+            print("[WeatherClient] ◀︎ Response: status=\(http.statusCode) url=\(http.url?.absoluteString ?? defaultURL?.absoluteString ?? "<nil>")")
+            print("[WeatherClient] ◀︎ ResponseHeaders: \(http.allHeaderFields)")
+        }
+        if let jsonString = String(data: data, encoding: .utf8) {
+            print("[WeatherClient] ◀︎ Body: \n\(jsonString)")
+        } else {
+            print("[WeatherClient] ◀︎ Body: <non-utf8 data, \(data.count) bytes>")
+        }
+    }
+#endif
 }
+
+struct WeatherIconView: View {
+    let code: Int
+    let size: CGFloat
+    var body: some View {
+        AsyncImage(url: URL(string: "https://tpf.weathernews.jp/wxicon/152/\(code).png")) { phase in
+            switch phase {
+            case .empty:
+                ProgressView().frame(width: size, height: size)
+            case .success(let image):
+                image
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size, height: size)
+            case .failure:
+                Image(systemName: weatherSymbol(for: code))
+                    .font(.system(size: size))
+            @unknown default:
+                Image(systemName: weatherSymbol(for: code))
+                    .font(.system(size: size))
+            }
+        }
+    }
+}
+

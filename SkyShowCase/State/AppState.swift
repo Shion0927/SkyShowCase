@@ -8,16 +8,16 @@ import Observation
 final class AppState {
     // MARK: - Search / Forecast State
     var searchText: String = ""
-    var searchResults: [OpenMeteoCity] = []
+    var searchResults: [City] = []
     var isSearching = false
     var isLoadingForecast = false
-    var forecast: Forecast?
-    var currentCity: OpenMeteoCity?
+    var forecast: WeatherForecast?
+    var currentCity: City?
     var errorMessage: String?
 
     // MARK: - Favorites
     private let favoritesKey = "favorites.cities"
-    var favorites: [OpenMeteoCity] = []
+    var favorites: [City] = []
 
     // MARK: - Dependencies
     @ObservationIgnored private let client: WeatherClient
@@ -28,7 +28,7 @@ final class AppState {
         self.client = client
         // Load favorites
         if let data = UserDefaults.standard.data(forKey: favoritesKey),
-           let items = try? JSONDecoder().decode([OpenMeteoCity].self, from: data) {
+           let items = try? JSONDecoder().decode([City].self, from: data) {
             self.favorites = items
         }
     }
@@ -54,7 +54,7 @@ final class AppState {
     }
 
     // MARK: - Forecast
-    func loadForecast(for city: OpenMeteoCity) {
+    func loadForecast(for city: City) {
         isLoadingForecast = true
         errorMessage = nil
         currentCity = city
@@ -71,11 +71,11 @@ final class AppState {
     }
 
     // MARK: - Favorites helpers
-    func isFavorite(_ city: OpenMeteoCity) -> Bool {
+    func isFavorite(_ city: City) -> Bool {
         favorites.contains(where: { $0.id == city.id })
     }
 
-    func toggleFavorite(_ city: OpenMeteoCity) {
+    func toggleFavorite(_ city: City) {
         if let idx = favorites.firstIndex(where: { $0.id == city.id }) {
             favorites.remove(at: idx)
         } else {
@@ -90,7 +90,7 @@ final class AppState {
     func fetchCurrentLocationCity(
         fallbackName: String = "現在地",
         locale: Locale = .current
-    ) async -> OpenMeteoCity? {
+    ) async -> City? {
         do {
             let loc = try await locationHelper.requestOneShotLocation()
             // Reverse geocode to get human-friendly names
@@ -129,7 +129,7 @@ final class AppState {
             let countryName = placemark?.country ?? locale.identifier
             let admin1 = placemark?.administrativeArea
 
-            return OpenMeteoCity(
+            return City(
                 id: -1,
                 name: name,
                 latitude: loc.coordinate.latitude,

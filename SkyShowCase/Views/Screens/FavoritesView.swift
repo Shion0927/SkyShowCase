@@ -29,7 +29,7 @@ struct FavoritesView: View {
                 }
             }
         }
-        .navigationDestination(for: OpenMeteoCity.self) { city in
+        .navigationDestination(for: City.self) { city in
             ForecastView(city: city)
         }
         .toolbar {
