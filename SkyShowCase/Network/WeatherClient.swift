@@ -28,7 +28,7 @@ struct WeatherClient {
     }
 
     // Fetch forecast (current + daily) via Weathernews WXTech (ss1wx)
-    func fetchForecast(lat: Double, lon: Double) async throws -> WeatherForecast {
+    func fetchForecast(lat: Double, lon: Double) async throws -> WeatherResponse {
         // WXTech ss1wx endpoint
         guard var comps = URLComponents(string: AppConfig().endpoint.wxtechForecastBase) else {
             throw WeatherError.invalidURL
@@ -50,34 +50,11 @@ struct WeatherClient {
             let joined = errs.map { "\($0.code): \($0.message)" }.joined(separator: " / ")
             throw WeatherError.other(NSError(domain: "WXTech", code: -1, userInfo: [NSLocalizedDescriptionKey: joined]))
         }
-        guard let data = resp.wxdata?.first else {
+        guard (resp.wxdata?.first) != nil else {
             throw WeatherError.emptyResult
         }
 
-        // Map WXTech -> app unified WeatherForecast
-        let currentSrf = data.srf?.first
-        let currentTemp = Double(currentSrf?.temp ?? -9999)
-        let currentWx = currentSrf?.wx ?? -9999
-        let currentWind = Double(currentSrf?.wndspd ?? -9999)
-        let currentTime = currentSrf?.date ?? ""
-
-        let current = WeatherForecast.Current(
-            temperature_2m: currentTemp,
-            weather_code: currentWx,
-            apparent_temperature: currentTemp,
-            wind_speed_10m: currentWind,
-            time: currentTime
-        )
-
-        let mrf = data.mrf ?? []
-        let daily = WeatherForecast.Daily(
-            time: mrf.map { $0.date },
-            weather_code: mrf.map { $0.wx },
-            temperature_2m_max: mrf.map { Double($0.maxtemp ?? -9999) },
-            temperature_2m_min: mrf.map { Double($0.mintemp ?? -9999) }
-        )
-
-        return WeatherForecast(current: current, daily: daily)
+        return resp
     }
 
     // Shared fetch for URLRequest (allows headers) with optional retries
