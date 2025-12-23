@@ -2,7 +2,7 @@ import SwiftUI
 import Observation
 
 struct ContentView: View {
-    private enum Tab: Hashable { case home, timeline, notifications, you }
+    private enum Tab: Hashable { case home, timeline, notifications, insight }
     @State private var selectedTab: Tab = .home
     @AppStorage("temperatureUnitPref") private var temperatureUnitPrefRaw: String = "system"
     @AppStorage("appearancePref") private var appearancePrefRaw: String = "system"
@@ -42,11 +42,11 @@ struct ContentView: View {
             .tag(Tab.notifications)
 
             NavigationStack {
-                YouView()
-                    .navigationTitle("tab.you")
+                InsightView()
+                    .navigationTitle("tab.insight")
             }
-            .tabItem { Label(String(localized: .init("tab.you")), systemImage: "person") }
-            .tag(Tab.you)
+            .tabItem { Label(String(localized: .init("tab.insight")), systemImage: "sparkles") }
+            .tag(Tab.insight)
         }
         .id(temperatureUnitPrefRaw)
         .tint(config.primaryTint)
