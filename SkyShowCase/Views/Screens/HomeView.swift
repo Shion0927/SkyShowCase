@@ -24,9 +24,19 @@ struct HomeView: View {
         .init(hour: "0", icon: "cloud", temp: "10°", marker: nil)
     ]
 
-    private let logItems: [NotificationLogItem] = [
-        .init(icon: "cloud.rain", title: "帰宅前の雨", time: "18:00", state: .sent, reasonHint: "帰宅時間帯 × 雨開始60分前"),
-        .init(icon: "cloud.drizzle", title: "弱い雨", time: nil, state: .suppressed, reasonHint: "以前スキップが多かったため")
+    private let logItems: [NotificationRowModel] = [
+        .init(
+            title: "帰宅前の雨",
+            timeText: "18:00",
+            summary: "帰宅時間帯 × 雨開始60分前",
+            state: .sent
+        ),
+        .init(
+            title: "弱い雨",
+            timeText: "通知せず",
+            summary: "以前スキップが多かったため",
+            state: .suppressed
+        )
     ]
 
     var body: some View {
@@ -127,7 +137,7 @@ struct HomeView: View {
                     .font(.headline)
                 Spacer()
                 NavigationLink {
-                    NotificationsPlaceholderView(city: selectedCity)
+                    NotificationsView()
                 } label: {
                     Text("すべて")
                         .font(.subheadline).fontWeight(.semibold)
@@ -138,8 +148,20 @@ struct HomeView: View {
             VStack(spacing: 0) {
                 ForEach(logItems.indices, id: \.self) { idx in
                     let it = logItems[idx]
-                    NotificationLogRow(item: it)
-                        .padding(.vertical, 10)
+
+                    NavigationLink {
+                        NotificationDetailView(
+                            title: it.title,
+                            time: it.timeText,
+                            wasSent: it.state == .sent,
+                            reason: it.summary,
+                            level: .soft // TODO: derive from real rule
+                        )
+                    } label: {
+                        NotificationRow(model: it)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(.plain)
 
                     if idx != logItems.count - 1 {
                         Divider().opacity(0.6)
@@ -248,33 +270,6 @@ private struct TimelineItem: Identifiable {
     var marker: Marker?
 }
 
-private struct NotificationLogItem: Identifiable {
-    enum State {
-        case sent
-        case suppressed
-
-        var badgeText: String? {
-            switch self {
-            case .sent: return nil
-            case .suppressed: return "抑制"
-            }
-        }
-
-        var badgeColor: Color {
-            switch self {
-            case .sent: return .secondary
-            case .suppressed: return .gray
-            }
-        }
-    }
-
-    var id = UUID()
-    var icon: String
-    var title: String
-    var time: String?
-    var state: State
-    var reasonHint: String
-}
 
 private struct LearningAction: Identifiable {
     enum Value { case yes, neutral, no }
@@ -352,54 +347,6 @@ private struct TimelinePill: View {
     }
 }
 
-private struct NotificationLogRow: View {
-    let item: NotificationLogItem
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: item.icon)
-                .font(.title3)
-                .foregroundStyle(.primary)
-                .frame(width: 26)
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Text(item.title)
-                        .font(.subheadline).fontWeight(.semibold)
-
-                    if let badge = item.state.badgeText {
-                        Text(badge)
-                            .font(.caption2).fontWeight(.semibold)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(
-                                Capsule().fill(item.state.badgeColor.opacity(0.15))
-                            )
-                            .foregroundStyle(item.state.badgeColor)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "info.circle")
-                        .foregroundStyle(.secondary)
-                }
-
-                Text(item.time ?? (item.state == .suppressed ? "通知せず" : ""))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Text(item.reasonHint)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            // TODO: navigate to NotificationDetail
-        }
-    }
-}
 
 private struct LearningCardView: View {
     let title: String
