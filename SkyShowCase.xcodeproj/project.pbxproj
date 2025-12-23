@@ -39,14 +39,43 @@
 		FE6C93D82EF3EE2500F4633B /* SkyShowCase_watch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SkyShowCase_watch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		FE6C95772EFA588C00F4633B /* Exceptions for "SkyShowCase_watch Watch App" folder in "SkyShowCase" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				App/ContentView.swift,
+				App/SkyShowCase_watchApp.swift,
+				Assets.xcassets,
+				Views/Components/ConclusionCard.swift,
+				Views/Screens/WatchHomeView.swift,
+			);
+			target = FE6374E12E6931870067C876 /* SkyShowCase */;
+		};
+		FE6C95782EFA588C00F4633B /* Exceptions for "SkyShowCase_watch Watch App" folder in "SkyShowCase_watch Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				App/ContentView.swift,
+				App/SkyShowCase_watchApp.swift,
+				Assets.xcassets,
+				Views/Components/ConclusionCard.swift,
+				Views/Screens/WatchHomeView.swift,
+			);
+			target = FE6C93D72EF3EE2500F4633B /* SkyShowCase_watch Watch App */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		FE6374E42E6931870067C876 /* SkyShowCase */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SkyShowCase;
 			sourceTree = "<group>";
 		};
-		FE6C93D92EF3EE2500F4633B /* SkyShowCase_watch Watch App */ = {
+		FE6C95732EFA588C00F4633B /* SkyShowCase_watch Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				FE6C95772EFA588C00F4633B /* Exceptions for "SkyShowCase_watch Watch App" folder in "SkyShowCase" target */,
+				FE6C95782EFA588C00F4633B /* Exceptions for "SkyShowCase_watch Watch App" folder in "SkyShowCase_watch Watch App" target */,
+			);
 			path = "SkyShowCase_watch Watch App";
 			sourceTree = "<group>";
 		};
@@ -74,7 +103,7 @@
 			isa = PBXGroup;
 			children = (
 				FE6374E42E6931870067C876 /* SkyShowCase */,
-				FE6C93D92EF3EE2500F4633B /* SkyShowCase_watch Watch App */,
+				FE6C95732EFA588C00F4633B /* SkyShowCase_watch Watch App */,
 				FE6374E32E6931870067C876 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -107,6 +136,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				FE6374E42E6931870067C876 /* SkyShowCase */,
+				FE6C95732EFA588C00F4633B /* SkyShowCase_watch Watch App */,
 			);
 			name = SkyShowCase;
 			packageProductDependencies = (
@@ -126,9 +156,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				FE6C93D92EF3EE2500F4633B /* SkyShowCase_watch Watch App */,
 			);
 			name = "SkyShowCase_watch Watch App";
 			packageProductDependencies = (
