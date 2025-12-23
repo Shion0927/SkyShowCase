@@ -25,7 +25,7 @@ struct NotificationScheduler {
         var ids = [id(for: cityId)]
         ids.append(contentsOf: (1...7).map { id(for: cityId) + ".w\($0)" })
         ids.append(contentsOf: [id(for: cityId) + ".today", id(for: cityId) + ".tomorrow"])
-        await center.removePendingNotificationRequests(withIdentifiers: ids)
+        center.removePendingNotificationRequests(withIdentifiers: ids)
         center.removeDeliveredNotifications(withIdentifiers: ids)
     }
 
@@ -249,13 +249,13 @@ struct NotificationScheduler {
 
     static func cancelToday(for cityId: Int) async {
         let center = UNUserNotificationCenter.current()
-        await center.removePendingNotificationRequests(withIdentifiers: [id(for: cityId) + ".today"])
+        center.removePendingNotificationRequests(withIdentifiers: [id(for: cityId) + ".today"])
         center.removeDeliveredNotifications(withIdentifiers: [id(for: cityId) + ".today"])
     }
 
     static func cancelTomorrow(for cityId: Int) async {
         let center = UNUserNotificationCenter.current()
-        await center.removePendingNotificationRequests(withIdentifiers: [id(for: cityId) + ".tomorrow"])
+        center.removePendingNotificationRequests(withIdentifiers: [id(for: cityId) + ".tomorrow"])
         center.removeDeliveredNotifications(withIdentifiers: [id(for: cityId) + ".tomorrow"])
     }
 
@@ -404,3 +404,4 @@ struct NotificationScheduler {
     }
     #endif
 }
+
