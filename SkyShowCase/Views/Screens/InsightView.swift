@@ -44,7 +44,7 @@ struct InsightView: View {
             .padding(16)
             .padding(.bottom, 24)
         }
-        .navigationTitle("Insight")
+        .navigationTitle(String(localized: .init("insight.nav.title")))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -171,9 +171,9 @@ private extension View {
 private struct NotificationSettingsPlaceholderView: View {
     var body: some View {
         VStack(spacing: 12) {
-            Text("Notification Settings")
+            Text(String(localized: .init("insight.tuning.placeholder.title")))
                 .font(.title2).bold()
-            Text("ここは後で本実装")
+            Text(String(localized: .init("common.todo.later")))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
