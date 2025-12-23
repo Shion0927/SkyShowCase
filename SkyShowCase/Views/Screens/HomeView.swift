@@ -22,21 +22,36 @@ struct HomeView: View {
     private var wxData: WeatherData? {
         appState.forecast?.wxdata?.first
     }
-    @State private var isLoading: Bool = false
-    @State private var errorText: String? = nil
 
     private var conclusionCards: [ConclusionCard] {
         guard let data = wxData else { return [] }
 
         // Card 1: 今日の天気（雨なら強調）
         let todayCode = data.mrf?.first?.wx ?? -9999
-        let todaySymbol = symbolName(for: todayCode)
+        let todaySymbol = WXWeatherSymbols.symbolName(for: todayCode)
         let todayTitle: String = {
-            if isRainCode(todayCode) { return "今日は雨の可能性" }
-            if isSnowCode(todayCode) { return "今日は雪の可能性" }
-            if isClearCode(todayCode) { return "今日は晴れ" }
-            if todayCode == -9999 { return "予報を取得できませんでした" }
-            return "今日はくもり"
+            switch WXWeatherCode.kind(for: todayCode) {
+            case .storm:
+                return "今日は大雨・嵐の可能性"
+            case .thunder:
+                return "今日は雷の可能性"
+            case .rain:
+                return "今日は雨の可能性"
+            case .sleet:
+                return "今日はみぞれの可能性"
+            case .snow, .heavySnow:
+                return "今日は雪の可能性"
+            case .heat:
+                return "今日は猛暑の可能性"
+            case .fog:
+                return "今日は霧の可能性"
+            case .clear:
+                return "今日は晴れ"
+            case .cloudy:
+                return "今日はくもり"
+            case .unknown:
+                return "予報を取得できませんでした"
+            }
         }()
         let todayMsg = "外出前にタイムラインで変化点を確認"
 
@@ -59,7 +74,7 @@ struct HomeView: View {
         }()
 
         return [
-            .init(icon: todaySymbol, title: todayTitle, message: todayMsg, meta: "今日", severity: isRainCode(todayCode) ? .soft : .inApp),
+            .init(icon: todaySymbol, title: todayTitle, message: todayMsg, meta: "今日", severity: WXWeatherCode.isPrecipitation(todayCode) ? .soft : .inApp),
             .init(icon: "thermometer", title: title2, message: msg2, meta: "現在", severity: .inApp)
         ]
     }
@@ -71,7 +86,7 @@ struct HomeView: View {
         return (0..<count).map { i in
             let it = srf[i]
             let label = hourLabel(from: it.date)
-            let icon = symbolName(for: it.wx)
+            let icon = WXWeatherSymbols.symbolName(for: it.wx)
             let t: String = {
                 let v = Double(it.temp ?? -9999)
                 if v == -9999 { return "--" }
@@ -122,8 +137,12 @@ struct HomeView: View {
         .task {
             appState.requestLocationIfNeeded()
         }
-        .task(id: (appState.selectedCity?.id ?? City.mockTokyo.id)) {
-            await loadForecast()
+        .onChange(of: (appState.selectedCity?.id ?? City.mockTokyo.id)) { _, _ in
+            Task { await appState.refreshForecastForSelectedCity() }
+        }
+        .task {
+            // 初回表示時に一度だけ取得
+            await appState.refreshForecastForSelectedCity()
         }
     }
 
@@ -160,7 +179,7 @@ struct HomeView: View {
     // MARK: - Sections
     private var conclusionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if isLoading {
+            if appState.isFetchingForecast {
                 HStack(spacing: 10) {
                     ProgressView()
                     Text("読み込み中")
@@ -170,7 +189,7 @@ struct HomeView: View {
                 .padding(.vertical, 8)
             }
 
-            if let err = errorText {
+            if let err = appState.forecastErrorText {
                 Text(err)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -179,7 +198,7 @@ struct HomeView: View {
             }
 
             let cards = conclusionCards
-            if cards.isEmpty && !isLoading && errorText == nil {
+            if cards.isEmpty && !appState.isFetchingForecast && appState.forecastErrorText == nil {
                 Text("都市を選ぶと天気が表示されます")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -296,22 +315,6 @@ struct HomeView: View {
     }
 
     // MARK: - Data loading
-    @MainActor
-    private func loadForecast() async {
-        if isLoading { return }
-        isLoading = true
-        errorText = nil
-        defer { isLoading = false }
-
-        do {
-            let resp = try await WeatherClient.shared.fetchForecast(lat: selectedCity.latitude, lon: selectedCity.longitude)
-            self.appState.forecast = resp
-            self.lastFetchedAt = Date()
-        } catch {
-            self.errorText = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
-            self.appState.forecast = nil
-        }
-    }
 
 
     // MARK: - Helpers (UI-only)
@@ -341,29 +344,9 @@ struct HomeView: View {
         out.dateFormat = "H"
         return "\(out.string(from: date))時"
     }
-
-
-    private func symbolName(for code: Int) -> String {
-        if isRainCode(code) { return "cloud.rain" }
-        if isSnowCode(code) { return "snow" }
-        if isClearCode(code) { return "sun.max" }
-        return "cloud"
-    }
-
-    private func isRainCode(_ code: Int) -> Bool {
-        // WXTech weather code is 100-999. Use coarse buckets:
-        // 100s: clear-ish, 200s: cloudy, 300s/500s/600s: rain-ish, 400s/700s: snow-ish
-        return (300...399).contains(code) || (500...699).contains(code)
-    }
-
-    private func isSnowCode(_ code: Int) -> Bool {
-        return (400...499).contains(code) || (700...799).contains(code)
-    }
-
-    private func isClearCode(_ code: Int) -> Bool {
-        return (100...199).contains(code)
-    }
 }
+
+ 
 
 
 // Use the app-wide `City` model defined in Cache.swift.
@@ -584,6 +567,7 @@ private struct CityPickerSheet: View {
                     if let cur = appState.currentLocationCity {
                         Button {
                             selected = cur
+                            Task { await appState.selectCityAndFetch(cur) }
                             // 現在地はお気に入りに入れない（必要ならここで addFavorite）
                             dismiss()
                         } label: {
@@ -628,6 +612,7 @@ private struct CityPickerSheet: View {
                         ForEach(appState.favoriteCities) { city in
                             Button {
                                 selected = city
+                                Task { await appState.selectCityAndFetch(city) }
                                 dismiss()
                             } label: {
                                 HStack {
@@ -685,6 +670,7 @@ private struct CityPickerSheet: View {
                             Button {
                                 appState.addFavorite(city)
                                 selected = city
+                                Task { await appState.selectCityAndFetch(city) }
                                 dismiss()
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {

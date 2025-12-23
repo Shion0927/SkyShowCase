@@ -21,9 +21,26 @@ final class AppState {
     }
     var errorMessage: String?
 
+    // MARK: - Compatibility (for new UI naming)
+    var isFetchingForecast: Bool {
+        get { isLoadingForecast }
+        set { isLoadingForecast = newValue }
+    }
+
+    var forecastErrorText: String? {
+        get { errorMessage }
+        set { errorMessage = newValue }
+    }
+
     // MARK: - Favorites
     private let favoritesKey = "favorites.cities"
     var favorites: [City] = []
+
+    /// UI側の命名互換（favoriteCities）
+    var favoriteCities: [City] {
+        get { favorites }
+        set { favorites = newValue }
+    }
 
     // 現在地（UIが参照する）
     var currentLocationCity: City? = nil
@@ -37,10 +54,7 @@ final class AppState {
     init(client: WeatherClient = .shared) {
         self.client = client
         // Load favorites
-        if let data = UserDefaults.standard.data(forKey: favoritesKey),
-           let items = try? JSONDecoder().decode([City].self, from: data) {
-            self.favorites = items
-        }
+        loadFavorites()
         // 位置情報はUI側で明示的にrefreshを呼ぶが、状態だけ先に持っておく
         self.locationStatus = locationHelper.authorizationStatus
     }
@@ -66,19 +80,36 @@ final class AppState {
     }
 
     // MARK: - Forecast
-    func loadForecast(for city: City) {
+
+    /// 選択都市を更新し、同時に予報も取得する（UI側はこれだけ呼べば良い）
+    func selectCityAndFetch(_ city: City) async {
+        selectedCity = city
+        await refreshForecastForSelectedCity()
+    }
+
+    /// 現在の選択都市に対して予報を取得する（多重実行防止あり）
+    func refreshForecastForSelectedCity() async {
+        guard let city = selectedCity else { return }
+        if isLoadingForecast { return }
+
         isLoadingForecast = true
         errorMessage = nil
-        currentCity = city
+        defer { isLoadingForecast = false }
+
+        do {
+            self.forecast = try await client.fetchForecast(lat: city.latitude, lon: city.longitude)
+        } catch is CancellationError {
+            self.errorMessage = WeatherError.cancelled.localizedDescription
+            self.forecast = nil
+        } catch {
+            self.errorMessage = (error as? WeatherError)?.localizedDescription ?? error.localizedDescription
+            self.forecast = nil
+        }
+    }
+
+    func loadForecast(for city: City) {
         Task {
-            do {
-                self.forecast = try await client.fetchForecast(lat: city.latitude, lon: city.longitude)
-            } catch is CancellationError {
-                self.errorMessage = WeatherError.cancelled.localizedDescription
-            } catch {
-                self.errorMessage = (error as? WeatherError)?.localizedDescription ?? error.localizedDescription
-            }
-            isLoadingForecast = false
+            await selectCityAndFetch(city)
         }
     }
 
@@ -100,6 +131,17 @@ final class AppState {
         if let data = try? JSONEncoder().encode(favorites) {
             UserDefaults.standard.set(data, forKey: favoritesKey)
         }
+    }
+
+    func loadFavorites() {
+        if let data = UserDefaults.standard.data(forKey: favoritesKey),
+           let items = try? JSONDecoder().decode([City].self, from: data) {
+            self.favorites = items
+        }
+    }
+
+    func saveFavorites() {
+        persistFavorites()
     }
 
     func addFavorite(_ city: City) {

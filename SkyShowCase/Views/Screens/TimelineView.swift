@@ -23,8 +23,8 @@ struct TimelineView: View {
             let temp = Double(it.temp ?? -9999)
             let t = temp == -9999 ? "--" : "\(Int(round(temp)))°"
             let prec = Double(it.prec ?? -9999)
-            let highlight = isRainCode(it.wx) || (prec != -9999 && prec > 0)
-            return .init(hour: hourLabel(from: it.date), symbol: symbolName(for: it.wx), temp: t, highlight: highlight)
+            let highlight = WXWeatherCode.isPrecipitation(it.wx) || (prec != -9999 && prec > 0)
+            return .init(hour: hourLabel(from: it.date), symbol: WXWeatherSymbols.symbolName(for: it.wx), temp: t, highlight: highlight)
         }
     }
 
@@ -44,9 +44,9 @@ struct TimelineView: View {
 
             let pop = it.pop ?? -99
             let popText = pop >= 0 ? "（\(pop)%）" : ""
-            let summary = wxSummary(for: it.wx) + popText
+            let summary = WXWeatherText.shortLabel(for: it.wx) + popText
 
-            return .init(day: day, summary: summary, highLow: highLow, symbol: symbolName(for: it.wx))
+            return .init(day: day, summary: summary, highLow: highLow, symbol: WXWeatherSymbols.symbolName(for: it.wx))
         }
     }
 
@@ -237,33 +237,6 @@ private func dayLabel(from isoOrDate: String, offset: Int) -> String {
         return out.string(from: d)
     }
     return "\(offset + 1)日後"
-}
-
-private func symbolName(for code: Int) -> String {
-    if isRainCode(code) { return "cloud.rain" }
-    if isSnowCode(code) { return "snow" }
-    if isClearCode(code) { return "sun.max" }
-    return "cloud"
-}
-
-private func wxSummary(for code: Int) -> String {
-    if isRainCode(code) { return "雨" }
-    if isSnowCode(code) { return "雪" }
-    if isClearCode(code) { return "晴れ" }
-    if code == -9999 { return "--" }
-    return "くもり"
-}
-
-private func isRainCode(_ code: Int) -> Bool {
-    return (300...399).contains(code) || (500...699).contains(code)
-}
-
-private func isSnowCode(_ code: Int) -> Bool {
-    return (400...499).contains(code) || (700...799).contains(code)
-}
-
-private func isClearCode(_ code: Int) -> Bool {
-    return (100...199).contains(code)
 }
 
 // MARK: - Styling
