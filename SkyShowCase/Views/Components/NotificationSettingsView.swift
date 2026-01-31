@@ -64,14 +64,22 @@ struct NotificationSettingsView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            HStack {
+            HStack(spacing: 12) {
+                Button(role: .destructive) {
+                    onDelete()
+                } label: {
+                    Text("削除")
+                }
+                .buttonStyle(.bordered)
+
                 Spacer()
+
                 Button {
                     onSave()
                 } label: {
-                    Text(String(localized: .init("common.save")))
+                    Text("保存")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
             }
             .padding(.horizontal)

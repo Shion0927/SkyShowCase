@@ -1,129 +1,146 @@
-// Notifications/NotificationRule.swift
 import Foundation
 
-/// 天気通知の条件を表すモデル（永続化対応）
-struct NotificationRule: Codable, Equatable {
-    /// 繰り返しタイプ
-    enum Frequency: String, Codable, CaseIterable {
-        /// 1回だけ
-        case oneTime
-        /// 毎日
+// MARK: - NotificationRule
+
+struct NotificationRule: Codable {
+    enum Frequency: String, Codable {
         case daily
-        /// 毎週（複数曜日に対応）
         case weekly
-        /// 「次の雨の日」だけ
+        case oneTime
         case nextDayRain
-        /// 指定温度以上の日だけ（℃ベース）
         case tempAbove
-        /// 指定温度以下の日だけ（℃ベース）
         case tempBelow
     }
 
-    /// 繰り返しタイプ
     var frequency: Frequency
-    /// 毎週のときに鳴らす曜日（1=日曜 ... 7=土曜）。daily/oneTime などでは `nil`
     var weekdays: Set<Int>?
-    /// 通知時刻（時）
-    var hour: Int
-    /// 通知時刻（分）
-    var minute: Int
-    /// 温度条件のしきい値（℃）。frequency が tempAbove / tempBelow のときに使用
     var temperature: Double?
 
-    // --- Per-day toggles & times ---
-    /// 本日の通知オン/オフ
-    var enableToday: Bool = false
-    /// 本日の通知時刻（時）
-    var todayHour: Int = 9
-    /// 本日の通知時刻（分）
-    var todayMinute: Int = 0
+    // UI（NotificationSettingsView）で編集される項目
+    var enableToday: Bool
+    var todayHour: Int
+    var todayMinute: Int
 
-    /// 明日の通知オン/オフ
-    var enableTomorrow: Bool = false
-    /// 明日の通知時刻（時）
-    var tomorrowHour: Int = 9
-    /// 明日の通知時刻（分）
-    var tomorrowMinute: Int = 0
+    var enableTomorrow: Bool
+    var tomorrowHour: Int
+    var tomorrowMinute: Int
 
-    private enum CodingKeys: String, CodingKey {
-        case frequency, weekdays, hour, minute, temperature,
-             enableToday, todayHour, todayMinute,
-             enableTomorrow, tomorrowHour, tomorrowMinute
-    }
+    // Scheduler 互換（現状これを参照している前提）
+    var hour: Int
+    var minute: Int
 
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        frequency = try c.decode(Frequency.self, forKey: .frequency)
-        weekdays = try c.decodeIfPresent(Set<Int>.self, forKey: .weekdays)
-        hour = try c.decode(Int.self, forKey: .hour)
-        minute = try c.decode(Int.self, forKey: .minute)
-        temperature = try c.decodeIfPresent(Double.self, forKey: .temperature)
-        // Per-day toggles: default values when missing
-        enableToday = try c.decodeIfPresent(Bool.self, forKey: .enableToday) ?? false
-        todayHour = try c.decodeIfPresent(Int.self, forKey: .todayHour) ?? 9
-        todayMinute = try c.decodeIfPresent(Int.self, forKey: .todayMinute) ?? 0
-        enableTomorrow = try c.decodeIfPresent(Bool.self, forKey: .enableTomorrow) ?? false
-        tomorrowHour = try c.decodeIfPresent(Int.self, forKey: .tomorrowHour) ?? 9
-        tomorrowMinute = try c.decodeIfPresent(Int.self, forKey: .tomorrowMinute) ?? 0
-    }
+    // MARK: - Defaults
 
-    /// 明示的なメンバワイズ初期化子（Decodable用の init(from:) を定義したため）
-    init(
-        frequency: Frequency,
-        weekdays: Set<Int>?,
-        hour: Int,
-        minute: Int,
-        temperature: Double?,
-        enableToday: Bool = false,
-        todayHour: Int = 9,
-        todayMinute: Int = 0,
-        enableTomorrow: Bool = false,
-        tomorrowHour: Int = 9,
-        tomorrowMinute: Int = 0
-    ) {
-        self.frequency = frequency
-        self.weekdays = weekdays
-        self.hour = hour
-        self.minute = minute
-        self.temperature = temperature
-        self.enableToday = enableToday
-        self.todayHour = todayHour
-        self.todayMinute = todayMinute
-        self.enableTomorrow = enableTomorrow
-        self.tomorrowHour = tomorrowHour
-        self.tomorrowMinute = tomorrowMinute
-    }
-
-    /// デフォルトルール（毎日20:00）
     static var defaultRule: NotificationRule {
         NotificationRule(
             frequency: .daily,
             weekdays: nil,
-            hour: 20,
-            minute: 0,
-            temperature: nil
+            temperature: nil,
+            enableToday: true,
+            todayHour: 8,
+            todayMinute: 0,
+            enableTomorrow: false,
+            tomorrowHour: 20,
+            tomorrowMinute: 0,
+            hour: 8,
+            minute: 0
         )
+    }
+
+    // MARK: - Storage key
+
+    private static func key(for cityId: Int) -> String {
+        "notification_rule_\(cityId)"
+    }
+
+    /// 互換のため複数キーを試す（過去にキー名を変更した場合の救済）
+    private static func keyCandidates(for cityId: Int) -> [String] {
+        let canonical = key(for: cityId)
+        return [
+            canonical,
+            "notificationRule_\(cityId)",
+            "notification_rule-\(cityId)",
+            "notification.rule.\(cityId)",
+            "rule_\(cityId)"
+        ]
     }
 }
 
-// MARK: - 永続化（UserDefaults）
+// MARK: - Persistence
 
 extension NotificationRule {
-    /// 都市IDごとに保存するキー
-    private static func key(for cityId: Int) -> String { "notify.rule.\(cityId)" }
-
-    /// ルールを読み込み
     static func load(for cityId: Int) -> NotificationRule? {
-        let key = key(for: cityId)
-        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(NotificationRule.self, from: data)
+        for k in keyCandidates(for: cityId) {
+            guard let data = UserDefaults.standard.data(forKey: k) else { continue }
+            if let decoded = try? JSONDecoder().decode(NotificationRule.self, from: data) {
+                // 見つけたキーがcanonicalでない場合、canonicalへ移行保存（自動マイグレーション）
+                if k != key(for: cityId) {
+                    UserDefaults.standard.set(data, forKey: key(for: cityId))
+                    UserDefaults.standard.removeObject(forKey: k)
+                }
+                return decoded
+            }
+        }
+        return nil
     }
 
-    /// ルールを保存
     static func save(_ rule: NotificationRule, for cityId: Int) {
-        let key = key(for: cityId)
-        if let data = try? JSONEncoder().encode(rule) {
-            UserDefaults.standard.set(data, forKey: key)
+        let k = key(for: cityId)
+        let normalized = normalizeForSave(rule)
+        if let data = try? JSONEncoder().encode(normalized) {
+            UserDefaults.standard.set(data, forKey: k)
         }
+    }
+
+    static func delete(for cityId: Int) {
+        for k in keyCandidates(for: cityId) {
+            UserDefaults.standard.removeObject(forKey: k)
+        }
+    }
+
+    // MARK: - Normalize
+
+    /// 保存前にルールを正規化（互換/安全のため）
+    private static func normalizeForSave(_ rule: NotificationRule) -> NotificationRule {
+        var r = rule
+
+        // frequency に応じて不要な値を整理
+        if r.frequency != .weekly {
+            r.weekdays = nil
+        } else {
+            // weekly は曜日必須。未指定なら月〜金をデフォルト
+            if r.weekdays == nil || r.weekdays?.isEmpty == true {
+                r.weekdays = [2, 3, 4, 5, 6] // Mon..Fri
+            }
+        }
+
+        // 温度しきい値
+        if r.frequency == .tempAbove {
+            if r.temperature == nil { r.temperature = 30 }
+        } else if r.frequency == .tempBelow {
+            if r.temperature == nil { r.temperature = 5 }
+        } else {
+            r.temperature = nil
+        }
+
+        // Scheduler互換: today/tomorrow の時刻を hour/minute に同期
+        if r.enableToday {
+            r.hour = r.todayHour
+            r.minute = r.todayMinute
+        } else if r.enableTomorrow {
+            r.hour = r.tomorrowHour
+            r.minute = r.tomorrowMinute
+        }
+        // 両方 false の場合は既存 hour/minute を温存
+
+        // 範囲ガード
+        r.hour = max(0, min(23, r.hour))
+        r.minute = max(0, min(59, r.minute))
+        r.todayHour = max(0, min(23, r.todayHour))
+        r.todayMinute = max(0, min(59, r.todayMinute))
+        r.tomorrowHour = max(0, min(23, r.tomorrowHour))
+        r.tomorrowMinute = max(0, min(59, r.tomorrowMinute))
+
+        return r
     }
 }

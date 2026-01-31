@@ -84,8 +84,7 @@ struct InsightView: View {
                 .font(.headline)
 
             NavigationLink {
-                // UI-only: wire to real settings later
-                NotificationSettingsPlaceholderView()
+                InsightTuningView()
             } label: {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
@@ -150,7 +149,7 @@ private struct InsightRow: View {
 
 // MARK: - Styling
 
-private extension View {
+extension View {
     func cardContainerStyle() -> some View {
         self
             .padding(14)
@@ -163,23 +162,6 @@ private extension View {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(Color.primary.opacity(0.04), lineWidth: 1)
             )
-    }
-}
-
-// MARK: - Placeholder (UI-only)
-
-private struct NotificationSettingsPlaceholderView: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Text(String(localized: .init("insight.tuning.placeholder.title")))
-                .font(.title2).bold()
-            Text(String(localized: .init("common.todo.later")))
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
-        .navigationTitle("調整")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

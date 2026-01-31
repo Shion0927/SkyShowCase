@@ -8,21 +8,93 @@
 import SwiftUI
 
 struct HomeView: View {
-    @State private var selectedCity: City = City.mockTokyo
+    @Environment(AppState.self) private var appState
+
     @State private var showCityPicker = false
 
-    // MARK: - Mock data (replace with real data later)
-    private let conclusionCards: [ConclusionCard] = [
-        .init(icon: "cloud.rain", title: "18–20時に雨", message: "傘があると安心", meta: "18:40〜", severity: .soft),
-        .init(icon: "thermometer.low", title: "朝は体感が低い", message: "薄手の上着が安心", meta: "7:00頃", severity: .soft)
-    ]
+    @State private var lastFetchedAt: Date? = nil
 
-    private let timeline: [TimelineItem] = [
-        .init(hour: "18", icon: "cloud", temp: "12°", marker: nil),
-        .init(hour: "20", icon: "cloud.rain", temp: "11°", marker: .start),
-        .init(hour: "22", icon: "cloud.rain", temp: "10°", marker: nil),
-        .init(hour: "0", icon: "cloud", temp: "10°", marker: nil)
-    ]
+    private var selectedCity: City {
+        get { appState.selectedCity ?? City.mockTokyo }
+        nonmutating set { appState.selectedCity = newValue }
+    }
+
+    private var wxData: WeatherData? {
+        appState.forecast?.wxdata?.first
+    }
+
+    private var conclusionCards: [ConclusionCard] {
+        guard let data = wxData else { return [] }
+
+        // Card 1: 今日の天気（雨なら強調）
+        let todayCode = data.mrf?.first?.wx ?? -9999
+        let todaySymbol = WXWeatherSymbols.symbolName(for: todayCode)
+        let todayTitle: String = {
+            switch WXWeatherCode.kind(for: todayCode) {
+            case .storm:
+                return "今日は大雨・嵐の可能性"
+            case .thunder:
+                return "今日は雷の可能性"
+            case .rain:
+                return "今日は雨の可能性"
+            case .sleet:
+                return "今日はみぞれの可能性"
+            case .snow, .heavySnow:
+                return "今日は雪の可能性"
+            case .heat:
+                return "今日は猛暑の可能性"
+            case .fog:
+                return "今日は霧の可能性"
+            case .clear:
+                return "今日は晴れ"
+            case .cloudy:
+                return "今日はくもり"
+            case .unknown:
+                return "予報を取得できませんでした"
+            }
+        }()
+        let todayMsg = "外出前にタイムラインで変化点を確認"
+
+        // Card 2: いまの気温（ShortRangeForecast 先頭を current 相当として扱う）
+        let current = data.srf?.first
+        let tempValue = Double(current?.temp ?? -9999)
+        let windValue = Double(current?.wndspd ?? -9999)
+        let temp = Int(round(tempValue))
+
+        let title2: String = {
+            if tempValue == -9999 { return "いま --" }
+            return "いま \(temp)°"
+        }()
+
+        let msg2: String = {
+            if windValue != -9999 {
+                return "風速 \(String(format: "%.1f", windValue))m/s"
+            }
+            return "現在の状況を確認"
+        }()
+
+        return [
+            .init(icon: todaySymbol, title: todayTitle, message: todayMsg, meta: "今日", severity: WXWeatherCode.isPrecipitation(todayCode) ? .soft : .inApp),
+            .init(icon: "thermometer", title: title2, message: msg2, meta: "現在", severity: .inApp)
+        ]
+    }
+
+    private var timeline: [TimelineItem] {
+        guard let srf = wxData?.srf, !srf.isEmpty else { return [] }
+
+        let count = min(12, srf.count)
+        return (0..<count).map { i in
+            let it = srf[i]
+            let label = hourLabel(from: it.date)
+            let icon = WXWeatherSymbols.symbolName(for: it.wx)
+            let t: String = {
+                let v = Double(it.temp ?? -9999)
+                if v == -9999 { return "--" }
+                return "\(Int(round(v)))°"
+            }()
+            return .init(hour: label, icon: icon, temp: t, marker: i == 0 ? .start : nil)
+        }
+    }
 
     private let logItems: [NotificationRowModel] = [
         .init(
@@ -59,8 +131,18 @@ struct HomeView: View {
             .padding(.bottom, 24)
         }
         .sheet(isPresented: $showCityPicker) {
-            CityPickerSheet(selected: $selectedCity)
+            CityPickerSheet(selected: Binding(get: { selectedCity }, set: { selectedCity = $0 }))
                 .presentationDetents([.medium, .large])
+        }
+        .task {
+            appState.requestLocationIfNeeded()
+        }
+        .onChange(of: (appState.selectedCity?.id ?? City.mockTokyo.id)) { _, _ in
+            Task { await appState.refreshForecastForSelectedCity() }
+        }
+        .task {
+            // 初回表示時に一度だけ取得
+            await appState.refreshForecastForSelectedCity()
         }
     }
 
@@ -71,8 +153,14 @@ struct HomeView: View {
                 showCityPicker = true
             } label: {
                 HStack(spacing: 6) {
-                    Text(selectedCity.displayName)
-                        .font(.title2).bold()
+                    if let city = appState.selectedCity {
+                        Text(city.displayName)
+                            .font(.title2).bold()
+                    } else {
+                        Text("都市を選択")
+                            .font(.title2).bold()
+                            .foregroundStyle(.secondary)
+                    }
                     Image(systemName: "chevron.down")
                         .font(.subheadline).fontWeight(.semibold)
                         .foregroundStyle(.secondary)
@@ -89,7 +177,7 @@ struct HomeView: View {
                     .font(.title3)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("通知設定")
+            .accessibilityLabel("通知")
         }
         .padding(.vertical, 6)
     }
@@ -97,8 +185,35 @@ struct HomeView: View {
     // MARK: - Sections
     private var conclusionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(conclusionCards.prefix(2)) { card in
-                ConclusionCardView(card: card)
+            if appState.isFetchingForecast {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("読み込み中")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 8)
+            }
+
+            if let err = appState.forecastErrorText {
+                Text(err)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 6)
+            }
+
+            let cards = conclusionCards
+            if cards.isEmpty && !appState.isFetchingForecast && appState.forecastErrorText == nil {
+                Text("都市を選ぶと天気が表示されます")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 6)
+            } else {
+                ForEach(cards.prefix(2)) { card in
+                    ConclusionCardView(card: card)
+                }
             }
         }
     }
@@ -197,14 +312,47 @@ struct HomeView: View {
     private var shortcutSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             NavigationLink {
-                YouPlaceholderView(city: selectedCity)
+                InsightTuningView()
             } label: {
-                ShortcutCardView(title: "通知の考え方を調整", subtitle: "あなたの設定へ")
+                ShortcutCardView(title: "通知の考え方を調整", subtitle: "学習の調整へ")
             }
             .buttonStyle(.plain)
         }
     }
+
+    // MARK: - Data loading
+
+
+    // MARK: - Helpers (UI-only)
+    private func hourLabel(from iso: String) -> String {
+        // Expect ISO 8601 extended with timezone: 2020-01-02T09:00:00+09:00
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        let d: Date? = f.date(from: iso) ?? {
+            let g = ISO8601DateFormatter()
+            g.formatOptions = [.withInternetDateTime]
+            return g.date(from: iso)
+        }()
+
+        guard let date = d else {
+            // fallback: try to extract "HH" from string
+            if let t = iso.split(separator: "T").dropFirst().first {
+                let hh = t.prefix(2)
+                return "\(hh)時"
+            }
+            return "--"
+        }
+
+        let out = DateFormatter()
+        out.locale = Locale(identifier: "ja_JP")
+        out.timeZone = TimeZone.current
+        out.dateFormat = "H"
+        return "\(out.string(from: date))時"
+    }
 }
+
+ 
 
 
 // Use the app-wide `City` model defined in Cache.swift.
@@ -409,28 +557,138 @@ private struct ShortcutCardView: View {
 
 private struct CityPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var appState
     @Binding var selected: City
 
-    private let cities: [City] = [.mockTokyo, .mockOsaka, .mockNagoya]
+    @State private var query: String = ""
+    @State private var isSearching: Bool = false
+    @State private var results: [City] = []
+    @State private var searchError: String? = nil
 
     var body: some View {
         NavigationStack {
             List {
-                ForEach(cities) { city in
-                    Button {
-                        selected = city
-                        dismiss()
-                    } label: {
-                        HStack {
-                            Text(city.displayName)
-                            Spacer()
-                            if city == selected {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(.tint)
+                // 現在地
+                Section("現在地") {
+                    if let cur = appState.currentLocationCity {
+                        Button {
+                            selected = cur
+                            Task { await appState.selectCityAndFetch(cur) }
+                            // 現在地はお気に入りに入れない（必要ならここで addFavorite）
+                            dismiss()
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(cur.displayName)
+                                    Text("GPS")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if cur.id == selected.id {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.tint)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            appState.refreshCurrentLocation()
+                        } label: {
+                            Label("現在地を更新", systemImage: "location")
+                        }
+                    } else {
+                        Text("現在地が取得できていません")
+                            .foregroundStyle(.secondary)
+                        Button {
+                            appState.refreshCurrentLocation()
+                        } label: {
+                            Label("取得する", systemImage: "location")
+                        }
+                    }
+                }
+
+                // お気に入り
+                Section("登録した土地") {
+                    if appState.favoriteCities.isEmpty {
+                        Text("まだ登録がありません")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(appState.favoriteCities) { city in
+                            Button {
+                                selected = city
+                                Task { await appState.selectCityAndFetch(city) }
+                                dismiss()
+                            } label: {
+                                HStack {
+                                    Text(city.displayName)
+                                    Spacer()
+                                    if city.id == selected.id {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(.tint)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .swipeActions {
+                                Button(role: .destructive) {
+                                    appState.removeFavorite(id: city.id)
+                                } label: {
+                                    Label("削除", systemImage: "trash")
+                                }
                             }
                         }
                     }
-                    .buttonStyle(.plain)
+                }
+
+                // 検索
+                Section("検索して追加") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("都市名（例: Tokyo / 札幌）", text: $query)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+
+                        if isSearching {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                Text("検索中")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        if let e = searchError {
+                            Text(e)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Button {
+                            Task { await search() }
+                        } label: {
+                            Label("検索", systemImage: "magnifyingglass")
+                        }
+                        .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+
+                    if !results.isEmpty {
+                        ForEach(results) { city in
+                            Button {
+                                appState.addFavorite(city)
+                                selected = city
+                                Task { await appState.selectCityAndFetch(city) }
+                                dismiss()
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(city.displayName)
+                                    Text(city.country)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
             }
             .navigationTitle("場所")
@@ -439,6 +697,26 @@ private struct CityPickerSheet: View {
                     Button("閉じる") { dismiss() }
                 }
             }
+        }
+        .task {
+            // 初回に現在地取得を促す
+            appState.requestLocationIfNeeded()
+        }
+    }
+
+    @MainActor
+    private func search() async {
+        if isSearching { return }
+        isSearching = true
+        searchError = nil
+        results = []
+        defer { isSearching = false }
+
+        do {
+            let items = try await WeatherClient.shared.searchCities(query: query.trimmingCharacters(in: .whitespacesAndNewlines))
+            results = items
+        } catch {
+            searchError = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
         }
     }
 }

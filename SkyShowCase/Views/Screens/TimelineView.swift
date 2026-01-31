@@ -9,15 +9,59 @@ import SwiftUI
 
 struct TimelineView: View {
 
-    // MARK: - Mock data (UI only)
-    private let hourly: [HourlyItem] = HourlyItem.mock24h
-    private let daily: [DailyItem] = DailyItem.mock7d
+    @Environment(AppState.self) private var appState
+
+    private var wxData: WeatherData? {
+        appState.forecast?.wxdata?.first
+    }
+
+    private var hourly: [HourlyItem] {
+        guard let srf = wxData?.srf, !srf.isEmpty else { return [] }
+        let count = min(24, srf.count)
+        return (0..<count).map { i in
+            let it = srf[i]
+            let temp = Double(it.temp ?? -9999)
+            let t = temp == -9999 ? "--" : "\(Int(round(temp)))°"
+            let prec = Double(it.prec ?? -9999)
+            let highlight = WXWeatherCode.isPrecipitation(it.wx) || (prec != -9999 && prec > 0)
+            return .init(hour: hourLabel(from: it.date), symbol: WXWeatherSymbols.symbolName(for: it.wx), temp: t, highlight: highlight)
+        }
+    }
+
+    private var daily: [DailyItem] {
+        guard let mrf = wxData?.mrf, !mrf.isEmpty else { return [] }
+        let count = min(7, mrf.count)
+        return (0..<count).map { i in
+            let it = mrf[i]
+            let day = dayLabel(from: it.date, offset: i)
+            let high = Double(it.maxtemp ?? -9999)
+            let low = Double(it.mintemp ?? -9999)
+            let highLow: String = {
+                let h = high == -9999 ? "--" : "\(Int(round(high)))°"
+                let l = low == -9999 ? "--" : "\(Int(round(low)))°"
+                return "\(h) / \(l)"
+            }()
+
+            let pop = it.pop ?? -99
+            let popText = pop >= 0 ? "（\(pop)%）" : ""
+            let summary = WXWeatherText.shortLabel(for: it.wx) + popText
+
+            return .init(day: day, summary: summary, highLow: highLow, symbol: WXWeatherSymbols.symbolName(for: it.wx))
+        }
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
 
                 header
+
+                if wxData == nil {
+                    Text("天気データがありません。ホームで都市を選ぶと表示されます")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                }
 
                 hourlySection
 
@@ -84,14 +128,6 @@ private struct HourlyItem: Identifiable {
     let symbol: String
     let temp: String
     let highlight: Bool
-
-    static let mock24h: [HourlyItem] = [
-        .init(hour: "18", symbol: "cloud.rain", temp: "12°", highlight: true),
-        .init(hour: "19", symbol: "cloud.rain", temp: "11°", highlight: true),
-        .init(hour: "20", symbol: "cloud", temp: "11°", highlight: false),
-        .init(hour: "21", symbol: "cloud", temp: "10°", highlight: false),
-        .init(hour: "22", symbol: "moon", temp: "9°", highlight: false)
-    ]
 }
 
 private struct DailyItem: Identifiable {
@@ -100,12 +136,6 @@ private struct DailyItem: Identifiable {
     let summary: String
     let highLow: String
     let symbol: String
-
-    static let mock7d: [DailyItem] = [
-        .init(day: "今日", summary: "夕方から雨", highLow: "12° / 6°", symbol: "cloud.rain"),
-        .init(day: "明日", summary: "くもり", highLow: "13° / 7°", symbol: "cloud"),
-        .init(day: "水", summary: "晴れ", highLow: "15° / 8°", symbol: "sun.max")
-    ]
 }
 
 // MARK: - Components
@@ -160,26 +190,59 @@ private struct DailyRow: View {
     }
 }
 
-// MARK: - Styling
+// MARK: - Helpers (WXTech)
 
-private extension View {
-    func cardContainerStyle() -> some View {
-        self
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.primary.opacity(0.04), lineWidth: 1)
-            )
+private func hourLabel(from iso: String) -> String {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+    let d: Date? = f.date(from: iso) ?? {
+        let g = ISO8601DateFormatter()
+        g.formatOptions = [.withInternetDateTime]
+        return g.date(from: iso)
+    }()
+
+    guard let date = d else {
+        if let t = iso.split(separator: "T").dropFirst().first {
+            let hh = t.prefix(2)
+            return String(hh)
+        }
+        return "--"
     }
+
+    let out = DateFormatter()
+    out.locale = Locale(identifier: "ja_JP")
+    out.timeZone = TimeZone.current
+    out.dateFormat = "H"
+    return out.string(from: date)
 }
+
+private func dayLabel(from isoOrDate: String, offset: Int) -> String {
+    if offset == 0 { return "今日" }
+    if offset == 1 { return "明日" }
+
+    let base = isoOrDate.split(separator: "T").first.map(String.init) ?? isoOrDate
+
+    let df = DateFormatter()
+    df.locale = Locale(identifier: "en_US_POSIX")
+    df.timeZone = TimeZone(secondsFromGMT: 0)
+    df.dateFormat = "yyyy-MM-dd"
+
+    let out = DateFormatter()
+    out.locale = Locale(identifier: "ja_JP")
+    out.timeZone = TimeZone.current
+    out.dateFormat = "E"
+
+    if let d = df.date(from: base) {
+        return out.string(from: d)
+    }
+    return "\(offset + 1)日後"
+}
+
 
 #Preview {
     NavigationStack {
         TimelineView()
+            .environment(AppState())
     }
 }
