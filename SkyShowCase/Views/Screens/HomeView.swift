@@ -153,8 +153,14 @@ struct HomeView: View {
                 showCityPicker = true
             } label: {
                 HStack(spacing: 6) {
-                    Text(selectedCity.displayName)
-                        .font(.title2).bold()
+                    if let city = appState.selectedCity {
+                        Text(city.displayName)
+                            .font(.title2).bold()
+                    } else {
+                        Text("都市を選択")
+                            .font(.title2).bold()
+                            .foregroundStyle(.secondary)
+                    }
                     Image(systemName: "chevron.down")
                         .font(.subheadline).fontWeight(.semibold)
                         .foregroundStyle(.secondary)
@@ -306,9 +312,9 @@ struct HomeView: View {
     private var shortcutSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             NavigationLink {
-                YouPlaceholderView(city: selectedCity)
+                InsightTuningView()
             } label: {
-                ShortcutCardView(title: "通知の考え方を調整", subtitle: "あなたの設定へ")
+                ShortcutCardView(title: "通知の考え方を調整", subtitle: "学習の調整へ")
             }
             .buttonStyle(.plain)
         }

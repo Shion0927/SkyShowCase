@@ -239,23 +239,6 @@ private func dayLabel(from isoOrDate: String, offset: Int) -> String {
     return "\(offset + 1)日後"
 }
 
-// MARK: - Styling
-
-private extension View {
-    func cardContainerStyle() -> some View {
-        self
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.primary.opacity(0.04), lineWidth: 1)
-            )
-    }
-}
 
 #Preview {
     NavigationStack {
