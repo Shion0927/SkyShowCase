@@ -126,6 +126,9 @@ struct NotificationScheduler {
         // 重複防止のため、まず既存をクリア
         await cancelAll(for: cityId)
 
+        // Insight tuning (MVP): -1 = notify less, 0 = normal, +1 = notify more
+        let tuningBias = InsightTuningStore.loadBias(cityId: cityId)
+
         // コンテンツ共通部
         let baseTitle = String(localized: .init("notification.title.reminder"))
 
@@ -205,7 +208,17 @@ struct NotificationScheduler {
             }
 
         case .nextDayRain:
-            if willRainTomorrow(forecast) {
+            // bias=-1 => notify less: only notify on heavier precipitation
+            let tomorrowWx = tomorrowWxCode(forecast)
+            let willNotify: Bool = {
+                guard let wx = tomorrowWx else { return false }
+                if tuningBias <= -1 {
+                    return isHeavyPrecipitation(wx)
+                }
+                return WXWeatherCode.isPrecipitation(wx)
+            }()
+
+            if willNotify {
                 let body = defaultBody(for: forecast, cityName: cityName, locale: locale)
                 if let dc = todayDateComponents(hour: rule.hour, minute: rule.minute) {
                     await addRequest(
@@ -213,7 +226,7 @@ struct NotificationScheduler {
                         title: baseTitle,
                         body: body,
                         trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false),
-                        reason: "next_day_rain"
+                        reason: "next_day_rain(bias=\(tuningBias),wx=\(tomorrowWx ?? -9999))"
                     )
                 } else {
                     var cal = Calendar.current
@@ -225,15 +238,28 @@ struct NotificationScheduler {
                         title: baseTitle,
                         body: body,
                         trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false),
-                        reason: "next_day_rain_asap"
+                        reason: "next_day_rain_asap(bias=\(tuningBias),wx=\(tomorrowWx ?? -9999))"
                     )
                 }
             } else {
-                results.append(.init(id: id(for: cityId), cityId: cityId, cityName: cityName, title: baseTitle, body: "", outcome: .suppressed, reason: "next_day_rain_condition_false", nextTriggerText: nil))
+                results.append(
+                    .init(
+                        id: id(for: cityId),
+                        cityId: cityId,
+                        cityName: cityName,
+                        title: baseTitle,
+                        body: "",
+                        outcome: .suppressed,
+                        reason: "next_day_rain_condition_false(bias=\(tuningBias),wx=\(tomorrowWx ?? -9999))",
+                        nextTriggerText: nil
+                    )
+                )
             }
 
         case .tempAbove:
-            let th = rule.temperature ?? 30
+            let base = Double(rule.temperature ?? 30)
+            // bias=-1 => harder to trigger (need hotter) / bias=+1 => easier to trigger
+            let th = base + Double(-tuningBias) * 2.0
             if meetsTemp(forecast, threshold: th, above: true) {
                 let body = defaultBodyToday(for: forecast, cityName: cityName, locale: locale)
                 if let dc = todayDateComponents(hour: rule.hour, minute: rule.minute) {
@@ -242,7 +268,7 @@ struct NotificationScheduler {
                         title: baseTitle,
                         body: body,
                         trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false),
-                        reason: "temp_above"
+                        reason: "temp_above(bias=\(tuningBias),th=\(Int(th)))"
                     )
                 } else {
                     var cal = Calendar.current
@@ -254,15 +280,17 @@ struct NotificationScheduler {
                         title: baseTitle,
                         body: body,
                         trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false),
-                        reason: "temp_above_asap"
+                        reason: "temp_above_asap(bias=\(tuningBias),th=\(Int(th)))"
                     )
                 }
             } else {
-                results.append(.init(id: id(for: cityId), cityId: cityId, cityName: cityName, title: baseTitle, body: "", outcome: .suppressed, reason: "temp_above_condition_false", nextTriggerText: nil))
+                results.append(.init(id: id(for: cityId), cityId: cityId, cityName: cityName, title: baseTitle, body: "", outcome: .suppressed, reason: "temp_above_condition_false(bias=\(tuningBias),th=\(Int(th)))", nextTriggerText: nil))
             }
 
         case .tempBelow:
-            let th = rule.temperature ?? 5
+            let base = Double(rule.temperature ?? 5)
+            // bias=-1 => harder to trigger (need colder) / bias=+1 => easier to trigger
+            let th = base + Double(tuningBias) * 2.0
             if meetsTemp(forecast, threshold: th, above: false) {
                 let body = defaultBodyToday(for: forecast, cityName: cityName, locale: locale)
                 if let dc = todayDateComponents(hour: rule.hour, minute: rule.minute) {
@@ -271,7 +299,7 @@ struct NotificationScheduler {
                         title: baseTitle,
                         body: body,
                         trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false),
-                        reason: "temp_below"
+                        reason: "temp_below(bias=\(tuningBias),th=\(Int(th)))"
                     )
                 } else {
                     var cal = Calendar.current
@@ -283,11 +311,11 @@ struct NotificationScheduler {
                         title: baseTitle,
                         body: body,
                         trigger: UNCalendarNotificationTrigger(dateMatching: dc, repeats: false),
-                        reason: "temp_below_asap"
+                        reason: "temp_below_asap(bias=\(tuningBias),th=\(Int(th)))"
                     )
                 }
             } else {
-                results.append(.init(id: id(for: cityId), cityId: cityId, cityName: cityName, title: baseTitle, body: "", outcome: .suppressed, reason: "temp_below_condition_false", nextTriggerText: nil))
+                results.append(.init(id: id(for: cityId), cityId: cityId, cityName: cityName, title: baseTitle, body: "", outcome: .suppressed, reason: "temp_below_condition_false(bias=\(tuningBias),th=\(Int(th)))", nextTriggerText: nil))
             }
         }
 
@@ -462,12 +490,33 @@ struct NotificationScheduler {
         forecast?.wxdata?.first
     }
 
-    private static func willRainTomorrow(_ forecast: WeatherResponse?) -> Bool {
-        guard let d = wxDataFirst(forecast) else { return false }
+    /// 明日の天気コード（mrf[1] があればそれ、なければ mrf[0]）
+    private static func tomorrowWxCode(_ forecast: WeatherResponse?) -> Int? {
+        guard let d = wxDataFirst(forecast) else { return nil }
         let mrf = d.mrf ?? []
         let idx = (mrf.count > 1) ? 1 : 0
-        guard mrf.indices.contains(idx) else { return false }
-        return WXWeatherCode.isPrecipitation(mrf[idx].wx)
+        guard mrf.indices.contains(idx) else { return nil }
+        return mrf[idx].wx
+    }
+
+    /// 強い降水のみ（bias=-1 の時に使用）
+    private static func isHeavyPrecipitation(_ wx: Int) -> Bool {
+        // 大雨・嵐系、雷、暴風雨、大雪など「外出に影響が大きい」ものだけ
+        switch wx {
+        case 306, 308, 328, 329, 340, 350: // heavy rain / rain+storm
+            return true
+        case 405, 406, 407, 425, 450: // heavy snow / blizzard / thunder snow
+            return true
+        case 800: // thunder
+            return true
+        case 850...899: // storm / heavy rain-storm variants
+            return true
+        case 950...999: // heavy snow / no data etc (treat as heavy to avoid missing)
+            return true
+        default:
+            // 650 は小雨なので heavy 扱いにしない
+            return false
+        }
     }
 
     private static func meetsTemp(_ forecast: WeatherResponse?, threshold: Double, above: Bool) -> Bool {
